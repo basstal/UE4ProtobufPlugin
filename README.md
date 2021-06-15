@@ -21,15 +21,4 @@ if (Excel)
         UE_LOG(LogTemp, Display, TEXT("Row->Data.id() : %d"), ExcelRow->id);
     }
 }
-UHeroUpgradeExcel * HeroUpgradeExcel = PBLoader->LoadExcel<UHeroUpgradeExcel>();
-if (HeroUpgradeExcel)
-{
-    for (auto Row : HeroUpgradeExcel->Rows)
-    {
-        for (auto Attr : Row->attr)
-        {
-            UE_LOG(LogTemp, Display, TEXT("Attr->value : %f"), Attr->value);
-        }
-    }
-}
 ```
