@@ -1,4 +1,5 @@
-﻿#include "PBLoaderSubsystem.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+#include "PBLoaderSubsystem.h"
 
 #include "Protobuf.h"
 #include "ProtobufSetting.h"
