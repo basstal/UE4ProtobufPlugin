@@ -53,15 +53,20 @@ public class Protobuf : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
+				"DeveloperSettings"
 				// ... add private dependencies that you statically link with here ...	
 			}
 		);
 
-		if (Target.Type == TargetType.Editor)
+		if (Target.bBuildEditor == true)
 		{
 			PrivateDependencyModuleNames.AddRange(new string[]
 			{
-				"UnrealEd"
+				"UnrealEd",
+				"AssetTools",
+				"ContentBrowserData",
+				"ContentBrowserFileDataSource"
+				
 			});
 		}
 

@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Engine/DeveloperSettings.h"
 #include "ProtobufSetting.generated.h"
 /**
 * 
@@ -23,7 +24,35 @@ public:
 	FDirectoryPath cpp_proto_out;
 	UPROPERTY(config, EditAnywhere, Category = "Setting|Out", meta=(DisplayName="ue对应的proto包装类在项目中的相对路径"))
     FDirectoryPath ue_cpp_wrapper_out;
+	/** Excel folders path in project */
+	UPROPERTY(config, EditAnywhere, Category="Setting", meta=(DisplayName="Excel文件夹在项目中的相对路径", ConfigRestartRequired=true))
+	TArray<FDirectoryPath> ExcelPaths;
 };
+
+
+UCLASS(config=EditorPerProjectUserSettings)
+class UProtobufUserSetting : public UDeveloperSettings
+{
+	GENERATED_BODY()
+public:
+	UProtobufUserSetting()
+	{
+		CategoryName = TEXT("Plugins");
+		SectionName = TEXT("Protobuf");
+	}
+
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	
+	/** Custom editor for python file */
+	UPROPERTY(config, EditAnywhere, Category="Setting", meta=(DisplayName="Excel执行文件路径"))
+	FString ExcelExec;
+};
+
+inline void UProtobufUserSetting::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
 //
 // inline void UProtobufSetting::PostLoad()
 // {
@@ -36,15 +65,22 @@ public:
 // 	UE_LOG(LogProtobuf, Display, TEXT("ue_cpp_wrapper_out : %s"), *ue_cpp_wrapper_out.Path);
 // }
 
-/**
- * 只截取相对路径
- */
 inline void UProtobufSetting::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+	/** 只截取相对路径 */
 	excel_root_path.Path = excel_root_path.Path.Replace(*FPaths::ProjectDir(), TEXT(""));
 	binaries_out.Path = binaries_out.Path.Replace(*FPaths::ProjectDir(), TEXT(""));
 	proto_root_path.Path = proto_root_path.Path.Replace(*FPaths::ProjectDir(), TEXT(""));
 	cpp_proto_out.Path = cpp_proto_out.Path.Replace(*FPaths::ProjectDir(), TEXT(""));
 	ue_cpp_wrapper_out.Path = ue_cpp_wrapper_out.Path.Replace(*FPaths::ProjectDir(), TEXT(""));
+
+	TArray<FDirectoryPath> OutExcelPaths;
+	for (auto ExcelPath : ExcelPaths)
+	{
+		FDirectoryPath DirectoryPath;
+		DirectoryPath.Path = ExcelPath.Path.Replace(*FPaths::ProjectDir(), TEXT(""));
+		OutExcelPaths.Add(DirectoryPath);
+	}
+	ExcelPaths = OutExcelPaths;
 }
