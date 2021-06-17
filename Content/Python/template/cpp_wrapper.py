@@ -30,8 +30,15 @@ cpp_wrapper_template = r'''
 #include "ExcelRow.h"
 
 #include "ProtoGen/${module_name}$.pb.h"
-
+${#-----------------------------------------------------}$
+${#-----处理 pb import 依赖关系-----}$
+${#-----------------------------------------------------}$
+${for pb_import in pb_imports:}$
+#include "${pb_import}$Wrapper.h"
+${:end-for}$
+${if len(enums_wrapper) > 0 or len(classes_wrapper) > 0 or len(excels_wrapper) > 0:}$
 #include "${file_basename}$.generated.h"
+${:end-if}$
 
 #ifdef _MSC_VER
 #pragma warning(disable: 4946)

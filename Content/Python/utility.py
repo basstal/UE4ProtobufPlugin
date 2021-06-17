@@ -186,22 +186,22 @@ def get_all_volumes():
 
 def get_files(work_dir, include_patterns=None, ignore_patterns=None, follow_links=False, recursive=True, apply_ignore_when_conflick=True):
     """
-    # 根据包含规则和忽略规则，获得指定目录下的文件列表
-    #
-    # @work_dir (str)
-    #   根目录
-    # @include_patterns (list(str))
-    #   包含路径的规则，可以与忽略规则同时生效
-    #   NOTE:这里的patterns用的是UNIX通配符，而非语言正则表达式
-    # @ignore_patterns (list(str))
-    #   忽略路径的规则，满足该规则并且不与包含路径冲突则文件被忽略
-    #   NOTE:这里的patterns用的是UNIX通配符，而非语言正则表达式
-    # @follow_links (bool)
-    #   遍历是否包含文件链接
-    # @recursive (bool)
-    #   是否递归
-    # @apply_ignore_when_conflick (bool)
-    #   包含规则与忽略规则冲突时，优先遵守忽略规则
+    根据包含规则和忽略规则，获得指定目录下的文件列表
+    
+    @work_dir (str)
+      根目录
+    @include_patterns (list(str))
+      包含路径的规则，可以与忽略规则同时生效
+      NOTE:这里的patterns用的是UNIX通配符，而非语言正则表达式
+    @ignore_patterns (list(str))
+      忽略路径的规则，满足该规则并且不与包含路径冲突则文件被忽略
+      NOTE:这里的patterns用的是UNIX通配符，而非语言正则表达式
+    @follow_links (bool)
+      遍历是否包含文件链接
+    @recursive (bool)
+      是否递归
+    @apply_ignore_when_conflick (bool)
+      包含规则与忽略规则冲突时，优先遵守忽略规则
     """
     if os.path.isfile(work_dir):
         result = [work_dir]

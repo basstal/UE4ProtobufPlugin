@@ -16,12 +16,10 @@ import unreal
 
 def get_pb_field_ref(excel_field_name):
     """
-    # ** 
-    # 根据excel列描述名称[第二列的字符串]，生成对应的pb message字段映射，这里处理了 '.' 操作获得子Message以及 '[]' 操作获得repeated字段按下标索引
-    #
-    # @excel_field_name (str)
-    #   excel列描述名称
-    # **
+    根据excel列描述名称[第二列的字符串]，生成对应的pb message字段映射，这里处理了 '.' 操作获得子Message以及 '[]' 操作获得repeated字段按下标索引
+    
+    @excel_field_name (str)
+      excel列描述名称
     """
     pb_field_excel_ref = []
 
@@ -45,16 +43,14 @@ def validate(excel_instances):
 
 def output_binaries(excel_instances, output_path, type_name):
     """
-    # ** 
-    # 将序列化的内容输出到指定的文件路径
-    # 
-    # @excel_instances (list(object<Message>))
-    #   已序列化对象的列表
-    # @output_path (str)
-    #   输出文件的完整路径
-    # @type_name (str)
-    #   表名
-    # **
+    将序列化的内容输出到指定的文件路径
+     
+    @excel_instances (list(object<Message>))
+      已序列化对象的列表
+    @output_path (str)
+      输出文件的完整路径
+    @type_name (str)
+      表名
     """
     if not os.path.exists(output_path):
         os.makedirs(output_path)
@@ -77,16 +73,14 @@ def output_binaries(excel_instances, output_path, type_name):
 
 def excel_binarization(excel, type_name, verbose=True):
     """
-    # ** 
-    # 序列化指定的excel中每一行到指定的pb类型
-    # 
-    # @excel (str)
-    #   excel文件的完整路径
-    # @type_name (str)
-    #   对应的pb message名称
-    # @verbose (bool)
-    #   是否显示序列化log信息
-    # **
+    序列化指定的excel中每一行到指定的pb类型
+     
+    @excel (str)
+      excel文件的完整路径
+    @type_name (str)
+      对应的pb message名称
+    @verbose (bool)
+      是否显示序列化log信息
     """
     pb_type, _ = pb_helper.get_type_with_module(type_name)
     result = []
@@ -155,10 +149,7 @@ def excel_binarization(excel, type_name, verbose=True):
 
 def get_bin():
     """
-    # ** 
-    # 根据平台，获得protoc执行文件路径
-    #
-    # **
+    根据平台，获得protoc执行文件路径
     """
     if u.is_win():
         project_plugins_dir = unreal.Paths.project_plugins_dir()
@@ -168,14 +159,12 @@ def get_bin():
 
 def make_args(dir, ignore_patterns=None):
     """
-    # ** 
-    # 生成 protoc 执行时需要的 .proto 文件对应的路径参数
-    #
-    # @dir (str)
-    #   proto文件所在根目录
-    # @ignore_patterns (list(str))
-    #   参数解释
-    # **
+    生成 protoc 执行时需要的 .proto 文件对应的路径参数
+   
+    @dir (str)
+      proto文件所在根目录
+    @ignore_patterns (list(str))
+      参数解释
     """
     proto_files = u.get_files(dir, ["*.proto"], ignore_patterns)
 
@@ -203,20 +192,17 @@ def generate_pbdef(proto_path, output_path, type):
     else:
         unreal.log_warning("not supported type {}".format(type))
         return
-    unreal.log(args)
     u.execute(get_bin(), args)
 
 
 def filter_by_option_descriptor(pb_fields, option_field_descriptor_name):
     """
-    # ** 
-    # 从输出的pb fields中，筛选出含有指定pb option的pb field
-    #
-    # @pb_fields (list(object<FieldDescriptor>))
-    #   待筛选的 Message FieldDescriptor 对象列表
-    # @option_field_descriptor_name (str)
-    #   指定的 option
-    # **
+    从输出的pb fields中，筛选出含有指定pb option的pb field
+
+    @pb_fields (list(object<FieldDescriptor>))
+      待筛选的 Message FieldDescriptor 对象列表
+    @option_field_descriptor_name (str)
+      指定的 option
     """
 
     result_fields = []
@@ -234,19 +220,24 @@ def filter_by_option_descriptor(pb_fields, option_field_descriptor_name):
 
 def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
     """
-    # ** 
-    # 生成UE的cpp包装，将excel对应的Message全部转换到UCLASS，这部分cpp代码是靠templite模板生成的
-    #
-    # @output_path (str)
-    #   excel文件的完整路径
-    # @cpp_excel_wrapper (str)
-    #   对应的pb message名称
-    # **
+    生成UE的cpp包装，将excel对应的Message全部转换到UCLASS，这部分cpp代码是靠templite模板生成的
+    
+    @output_path (str)
+      excel文件的完整路径
+    @cpp_excel_wrapper (str)
+      对应的pb message名称
     """
     cpp_wrapper_content_by_modules = {}
     for module in pb_helper.loaded_modules:
+        # ** NOTE:仅windows生效
         if 'google\\protobuf' in module.__file__:
             continue
+        pb_imports = []
+        for dependency in module.DESCRIPTOR.dependencies:
+            if 'google/protobuf' in dependency.name:
+                continue
+            pb_imports.append(dependency.name.replace('.proto', ''))
+        
         # ** NOTE:根据模块将类写入对应wrapper中
         classes_wrapper = []
         for message_name in module.DESCRIPTOR.message_types_by_name:
@@ -273,11 +264,13 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
         # ** NOTE:模板中会根据以下数据生成对应的cpp类，其中：
         # ** classes_wrapper生成class是对pb中Message定义的包装，
         # ** enums_wrapper生成enum是对pb中Enum定义的包装，
-        # ** excels_wrapper生成class是对一个excel表的包装，仅对应有Excel表的Message才会生成这个class，这个是延后添加的
+        # ** excels_wrapper生成class是对一个excel表的包装，仅对应有Excel表的Message才会生成这个class，这个是延后添加的，
+        # ** pb_imports生成文件中依赖的其他生成文件，依据pb import依赖关系
         cpp_wrapper_content_by_modules[module] = {
             'classes_wrapper': classes_wrapper,
             'enums_wrapper': enums_wrapper,
-            'excels_wrapper' : []
+            'excels_wrapper' : [],
+            'pb_imports' : pb_imports,
         }
 
     for excel_wrapper in cpp_excel_wrapper:
@@ -299,28 +292,35 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
     from template.cpp_wrapper import cpp_wrapper_template, pb_type_to_ue_type_map
     if not os.path.exists(output_path):
         os.makedirs(output_path)
+
+    all_class_wrapper = []
+    all_excel_wrapper = []
     for module in cpp_wrapper_content_by_modules:
         cpp_wrapper_content = cpp_wrapper_content_by_modules[module]
+        all_class_wrapper.extend(cpp_wrapper_content['classes_wrapper'])
+        all_excel_wrapper.extend(cpp_wrapper_content['excels_wrapper'])
+        
+    # 处理友元类
+    for class_wrapper in all_class_wrapper:
+        class_friend_classes = [] if 'class_friend_classes' not in class_wrapper else class_wrapper['class_friend_classes']
+        # 自身Message的Excel包装能够使用自身的Load
+        for excel_wrapper in all_excel_wrapper:
+            if excel_wrapper["excelname"] == class_wrapper["classname"]:
+                class_friend_classes.append(f'{excel_wrapper["excelname"]}Excel')
+        # 自身能使用子Message中的Load
+        for pb_field in class_wrapper['pb_fields']:
+            if pb_field.message_type is not None:
+                for inner_class_wrapper in all_class_wrapper:
+                    if inner_class_wrapper['classname'] == pb_field.message_type.name:
+                        inner_class_friend_classes = [] if 'class_friend_classes' not in inner_class_wrapper else inner_class_wrapper['class_friend_classes']
+                        inner_class_friend_classes.append(f'{class_wrapper["classname"]}Wrap')
+                        inner_class_wrapper['class_friend_classes'] = inner_class_friend_classes
+        class_wrapper['class_friend_classes'] = class_friend_classes
+        
+    for module in cpp_wrapper_content_by_modules:
+        # unreal.log(f"generated module name -> {module.__name__}")
+        cpp_wrapper_content = cpp_wrapper_content_by_modules[module]
         module_name = module.__name__.replace('_pb2', '')
-        # 处理友元类
-        classes_wrapper = cpp_wrapper_content['classes_wrapper']
-        excels_wrapper = cpp_wrapper_content['excels_wrapper']
-        for class_wrapper in classes_wrapper:
-            class_friend_classes = [] if 'class_friend_classes' not in class_wrapper else class_wrapper['class_friend_classes']
-            # 自身Message的Excel包装能够使用自身的Load
-            for excel_wrapper in excels_wrapper:
-                if excel_wrapper["excelname"] == class_wrapper["classname"]:
-                    class_friend_classes.append(f'{excel_wrapper["excelname"]}Excel')
-            # 自身能使用子Message中的Load
-            for pb_field in class_wrapper['pb_fields']:
-                if pb_field.message_type is not None:
-                    for inner_class_wrapper in classes_wrapper:
-                        if inner_class_wrapper['classname'] == pb_field.message_type.name:
-                            inner_class_friend_classes = [] if 'class_friend_classes' not in inner_class_wrapper else inner_class_wrapper['class_friend_classes']
-                            inner_class_friend_classes.append(f'{class_wrapper["classname"]}Wrap')
-                            inner_class_wrapper['class_friend_classes'] = inner_class_friend_classes
-            class_wrapper['class_friend_classes'] = class_friend_classes
-
 
         # ** NOTE:对每一个Proto文件中的所有Message生成一个对应的UCLASS包装
         file_basename = '{}Wrapper'.format(module_name)
@@ -328,23 +328,25 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
         if os.path.exists(file_path):
             os.remove(file_path)
 
+        # unreal.log(f"generated module classes_wrapper -> {classes_wrapper}")
+
         cpp_wrapper_content = Templite(cpp_wrapper_template).render(
-            classes_wrapper=classes_wrapper,
+            classes_wrapper=cpp_wrapper_content['classes_wrapper'],
             enums_wrapper=cpp_wrapper_content['enums_wrapper'],
-            excels_wrapper = excels_wrapper,
+            excels_wrapper = cpp_wrapper_content['excels_wrapper'],
+            pb_imports = cpp_wrapper_content['pb_imports'],
             module_name=module_name,
             file_basename=file_basename,
             pb_type_to_ue_type_map=pb_type_to_ue_type_map,
             FieldDescriptor=pb_helper.FieldDescriptor)
+        
+        # unreal.log(f"cpp_wrapper_content : {cpp_wrapper_content}")
         with open(file_path, 'w') as f:
             f.write(cpp_wrapper_content)
 
 def load_preference():
     """
-    # ** 
-    # 载入json配置文件
-    #
-    # **
+    载入json配置文件
     """
     project_config_dir = unreal.Paths.project_config_dir()
 
@@ -360,14 +362,12 @@ def load_preference():
 
 def get_path_from_preference(preference, path_key):
     """
-    # ** 
-    # 从配置中获取指定路径，并转化为UE工程路径
-    #
-    # @preference (dict())
-    #   配置
-    # @path_key (str)
-    #   获取对应字段名
-    # **
+    从配置中获取指定路径，并转化为UE工程路径
+    
+    @preference (dict())
+      配置
+    @path_key (str)
+      获取对应字段名
     """
     preference_path = None if path_key not in preference else preference[path_key]
     pattern = re.compile(r'\(Path="(.*)"\)')
