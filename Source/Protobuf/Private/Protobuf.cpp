@@ -2,16 +2,15 @@
 
 #include "Protobuf.h"
 
-#include "ContentBrowserDataSubsystem.h"
-#include "IContentBrowserDataModule.h"
-#include "ISettingsModule.h"
 #include "ProtobufSetting.h"
 #include "Misc/BlacklistNames.h"
 
 #if WITH_EDITOR
+#include "ISettingsModule.h"
 #include "Settings/ProjectPackagingSettings.h"
 #include "AssetViewUtils.h"
-#include "ContentBrowserFileDataCore.h"
+#include "IContentBrowserDataModule.h"
+#include "ContentBrowserDataSubsystem.h"
 #include "ContentBrowserFileDataSource.h"
 #endif // WITH_EDITOR
 

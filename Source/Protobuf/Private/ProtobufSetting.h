@@ -13,7 +13,9 @@ class UProtobufSetting : public UObject
 	
 public:
 	// virtual void PostLoad() override;
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
 	UPROPERTY(config, EditAnywhere, Category = "Setting|In", meta=(DisplayName="Excel源文件在项目中的相对路径"))
 	FDirectoryPath excel_root_path;
 	UPROPERTY(config, EditAnywhere, Category = "Setting|In", meta=(DisplayName="proto源文件在项目中的相对路径"))
@@ -40,47 +42,12 @@ public:
 		CategoryName = TEXT("Plugins");
 		SectionName = TEXT("Protobuf");
 	}
+#if WITH_EDITOR
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	
+#endif // WITH_EDITOR
+
 	/** Custom editor for python file */
 	UPROPERTY(config, EditAnywhere, Category="Setting", meta=(DisplayName="Excel执行文件路径"))
 	FString ExcelExec;
 };
-
-inline void UProtobufUserSetting::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
-
-//
-// inline void UProtobufSetting::PostLoad()
-// {
-// 	Super::PostLoad();
-// 	UE_LOG(LogProtobuf, Display, TEXT("UProtobufSetting Loaded."));
-// 	UE_LOG(LogProtobuf, Display, TEXT("excel_root_path : %s"), *excel_root_path.Path);
-// 	UE_LOG(LogProtobuf, Display, TEXT("binaries_out : %s"), *binaries_out.Path);
-// 	UE_LOG(LogProtobuf, Display, TEXT("proto_root_path : %s"), *proto_root_path.Path);
-// 	UE_LOG(LogProtobuf, Display, TEXT("cpp_proto_out : %s"), *cpp_proto_out.Path);
-// 	UE_LOG(LogProtobuf, Display, TEXT("ue_cpp_wrapper_out : %s"), *ue_cpp_wrapper_out.Path);
-// }
-
-inline void UProtobufSetting::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-	/** 只截取相对路径 */
-	excel_root_path.Path = excel_root_path.Path.Replace(*FPaths::ProjectDir(), TEXT(""));
-	binaries_out.Path = binaries_out.Path.Replace(*FPaths::ProjectDir(), TEXT(""));
-	proto_root_path.Path = proto_root_path.Path.Replace(*FPaths::ProjectDir(), TEXT(""));
-	cpp_proto_out.Path = cpp_proto_out.Path.Replace(*FPaths::ProjectDir(), TEXT(""));
-	ue_cpp_wrapper_out.Path = ue_cpp_wrapper_out.Path.Replace(*FPaths::ProjectDir(), TEXT(""));
-
-	TArray<FDirectoryPath> OutExcelPaths;
-	for (auto ExcelPath : ExcelPaths)
-	{
-		FDirectoryPath DirectoryPath;
-		DirectoryPath.Path = ExcelPath.Path.Replace(*FPaths::ProjectDir(), TEXT(""));
-		OutExcelPaths.Add(DirectoryPath);
-	}
-	ExcelPaths = OutExcelPaths;
-}
