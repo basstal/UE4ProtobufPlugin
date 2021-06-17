@@ -6,7 +6,6 @@ import os
 import shutil
 import traceback
 
-
 import utility as u
 from pb_shell import pb_shell
 from pb_helper import pb_helper
@@ -16,12 +15,14 @@ from templite import Templite
 import unreal
 
 def get_pb_field_ref(excel_field_name):
+    """
     # ** 
     # 根据excel列描述名称[第二列的字符串]，生成对应的pb message字段映射，这里处理了 '.' 操作获得子Message以及 '[]' 操作获得repeated字段按下标索引
     #
     # @excel_field_name (str)
     #   excel列描述名称
     # **
+    """
     pb_field_excel_ref = []
 
     for section in excel_field_name.split("."):
@@ -43,6 +44,7 @@ def validate(excel_instances):
 
 
 def output_binaries(excel_instances, output_path, type_name):
+    """
     # ** 
     # 将序列化的内容输出到指定的文件路径
     # 
@@ -53,12 +55,13 @@ def output_binaries(excel_instances, output_path, type_name):
     # @type_name (str)
     #   表名
     # **
+    """
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     # ** 构造excel的包装类，将实例数据都填充到rows字段中
     excel_wrap_type, _ = pb_helper.get_type_with_module('Excel')
     if excel_wrap_type is None:
-        u.error('wrap type "{0}" not found . failed to output excel'.format(excel_wrap_type))
+        unreal.log_error('wrap type "{0}" not found . failed to output excel'.format(excel_wrap_type))
     excel_wrap = excel_wrap_type()
     setattr(excel_wrap, 'excelName', type_name)
     rows = getattr(excel_wrap, 'rows')
@@ -73,6 +76,7 @@ def output_binaries(excel_instances, output_path, type_name):
 
 
 def excel_binarization(excel, type_name, verbose=True):
+    """
     # ** 
     # 序列化指定的excel中每一行到指定的pb类型
     # 
@@ -83,10 +87,11 @@ def excel_binarization(excel, type_name, verbose=True):
     # @verbose (bool)
     #   是否显示序列化log信息
     # **
+    """
     pb_type, _ = pb_helper.get_type_with_module(type_name)
     result = []
     if pb_type is None:
-        u.error('pb type "{0}" not found . failed to binarization excel "{1}"'.format(type_name, excel))
+        unreal.log_error('pb type "{0}" not found . failed to binarization excel "{1}"'.format(type_name, excel))
         return result
 
     workbook = openpyxl.load_workbook(excel)
@@ -96,7 +101,7 @@ def excel_binarization(excel, type_name, verbose=True):
 
     try:
         if verbose:
-            u.info("excel binarization => {}".format(excel))
+            unreal.log("excel binarization => {}".format(excel))
             start_time = time.time()
         # ** NOTE:列所指代的特定pb字段，注意这里是可以使用伸缩格式（即fieldA.fieldB.fieldC）
         columns_to_pb_field_excel_ref = {}
@@ -138,21 +143,23 @@ def excel_binarization(excel, type_name, verbose=True):
         else:
             out_bytes = bytes([first_alphabet + a_num])
 
-        u.error("{} binarization failed in [line {} Columns {}]".format(excel, current_row, str(out_bytes, encoding="utf-8")))
-        u.error(traceback.format_exc())
+        unreal.log_error("{} binarization failed in [line {} Columns {}]".format(excel, current_row, str(out_bytes, encoding="utf-8")))
+        unreal.log_error(traceback.format_exc())
         raise e
 
     if verbose:
-        u.info("<= {0} binarization finished in {1:.2f} seconds".format(excel, time.time() - start_time))
+        unreal.log("<= {0} binarization finished in {1:.2f} seconds".format(excel, time.time() - start_time))
 
     return result
 
 
 def get_bin():
+    """
     # ** 
     # 根据平台，获得protoc执行文件路径
     #
     # **
+    """
     if u.is_win():
         project_plugins_dir = unreal.Paths.project_plugins_dir()
         result = os.path.abspath(os.path.normpath(os.path.join(project_plugins_dir, "Protobuf/ThirdParty/protobuf/bin/protoc.exe")))
@@ -160,6 +167,7 @@ def get_bin():
 
 
 def make_args(dir, ignore_patterns=None):
+    """
     # ** 
     # 生成 protoc 执行时需要的 .proto 文件对应的路径参数
     #
@@ -168,6 +176,7 @@ def make_args(dir, ignore_patterns=None):
     # @ignore_patterns (list(str))
     #   参数解释
     # **
+    """
     proto_files = u.get_files(dir, ["*.proto"], ignore_patterns)
 
     # ** NOTE:省略了比较时间戳和过滤生成
@@ -177,7 +186,7 @@ def make_args(dir, ignore_patterns=None):
             args.append(f"\"{proto_file}\"")
         return args
     else:
-        u.warning("No proto files in {} ??".format(dir))
+        unreal.log_warning("No proto files in {} ??".format(dir))
     return None
 
 
@@ -192,13 +201,14 @@ def generate_pbdef(proto_path, output_path, type):
         args = make_args(proto_path, ["*[\\/]google[\\/]*"])
         args.append(f"--cpp_out=\"{output_path}\"")
     else:
-        u.warning("not supported type {}".format(type))
+        unreal.log_warning("not supported type {}".format(type))
         return
     unreal.log(args)
     u.execute(get_bin(), args)
 
 
 def filter_by_option_descriptor(pb_fields, option_field_descriptor_name):
+    """
     # ** 
     # 从输出的pb fields中，筛选出含有指定pb option的pb field
     #
@@ -207,6 +217,7 @@ def filter_by_option_descriptor(pb_fields, option_field_descriptor_name):
     # @option_field_descriptor_name (str)
     #   指定的 option
     # **
+    """
 
     result_fields = []
 
@@ -222,6 +233,7 @@ def filter_by_option_descriptor(pb_fields, option_field_descriptor_name):
     return result_fields
 
 def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
+    """
     # ** 
     # 生成UE的cpp包装，将excel对应的Message全部转换到UCLASS，这部分cpp代码是靠templite模板生成的
     #
@@ -230,6 +242,7 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
     # @cpp_excel_wrapper (str)
     #   对应的pb message名称
     # **
+    """
     cpp_wrapper_content_by_modules = {}
     for module in pb_helper.loaded_modules:
         if 'google\\protobuf' in module.__file__:
@@ -327,15 +340,17 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
             f.write(cpp_wrapper_content)
 
 def load_preference():
+    """
     # ** 
     # 载入json配置文件
     #
     # **
+    """
     project_config_dir = unreal.Paths.project_config_dir()
 
     preferences_file_path = os.path.join(project_config_dir, "DefaultProtobuf.ini")
     if not os.path.exists(preferences_file_path):
-        u.error(f'Config file don\'t exist at path {preferences_file_path}')
+        unreal.log_error(f'Config file don\'t exist at path {preferences_file_path}')
         return
 
     config = configparser.ConfigParser()
@@ -344,6 +359,7 @@ def load_preference():
         return config['/Script/Protobuf.ProtobufSetting']
 
 def get_path_from_preference(preference, path_key):
+    """
     # ** 
     # 从配置中获取指定路径，并转化为UE工程路径
     #
@@ -352,6 +368,7 @@ def get_path_from_preference(preference, path_key):
     # @path_key (str)
     #   获取对应字段名
     # **
+    """
     preference_path = None if path_key not in preference else preference[path_key]
     pattern = re.compile(r'\(Path="(.*)"\)')
     match_result = pattern.match(preference_path)
@@ -367,7 +384,7 @@ def generate_all():
     ue_cpp_wrapper_out = get_path_from_preference(preference, 'ue_cpp_wrapper_out')
 
     python_pb_out = pb_helper.get_pb_path()
-    u.info("python_pbdef output path : {}".format(python_pb_out))
+    unreal.log("python_pbdef output path : {}".format(python_pb_out))
     generate_pbdef(proto_path, python_pb_out, 'python')
     generate_pbdef(proto_path, cpp_proto_out, "cpp")
 

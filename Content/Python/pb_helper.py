@@ -9,7 +9,9 @@ from google.protobuf.descriptor import FieldDescriptor
 
 
 class pb_helper:
+    """
     # ** 记录Python生成的pb模块
+    """
     loaded_modules = None
 
     TYPE_INT = [

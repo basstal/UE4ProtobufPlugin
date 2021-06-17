@@ -7,73 +7,7 @@ import shutil
 import glob
 import fnmatch
 
-# TODO:使用logging替代该功能
-######################
-######################
-#       Log          #
-######################
-######################
-
-LOG_LEVEL = None
-LOG_LEVEL_NORMAL = 0
-LOG_LEVEL_INFO = 1
-LOG_LEVEL_WARNING = 2
-LOG_LEVEL_ERROR = 3
-LOG_LEVEL_SUCCESS = 4
-LOG_LEVEL_NONE = 99
-LOG_INDENT = 0
-
-
-def color_message(message, color_code, bold=False):
-    if is_win():
-        os.system('')
-    result = '\033[{}m{}\033[0m'.format(color_code, message)
-    if bold:
-        result = '\033[1m' + result
-    return result
-
-
-def log(message, level=LOG_LEVEL_NORMAL, noident=False, bold=False):
-    global LOG_INDENT, LOG_LEVEL
-
-    if LOG_LEVEL is None:
-        LOG_LEVEL = int(get_env('SCRIPT_LOG_LEVEL', -1))
-
-    if level >= LOG_LEVEL:
-        if level == LOG_LEVEL_INFO:
-            message = color_message(message, 34, bold)
-
-        if level == LOG_LEVEL_WARNING:
-            message = color_message('warning: {}'.format(message), 33, bold)
-
-        if level == LOG_LEVEL_ERROR:
-            message = color_message('error: {}'.format(message), 31, bold)
-
-        if level == LOG_LEVEL_SUCCESS:
-            message = color_message('success: {}'.format(message), 32, bold)
-
-        if not is_win():
-            message = message.replace('=>', '➜').replace('<=', '✔')
-
-        message += '\n'
-
-        pipe = sys.stdout if level == LOG_LEVEL_NORMAL else sys.stderr
-
-        pipe.write(('' if noident else ('  ' * LOG_INDENT)) + message)
-
-
-def info(message, bold=False):
-    log(message, LOG_LEVEL_INFO, False, bold)
-
-
-def warning(message, bold=False):
-    log(message, LOG_LEVEL_WARNING, False, bold)
-
-
-def error(message, bold=False):
-    set_env('__SCRIPT_ERROR', 1)
-    set_env('__SCRIPT_LAST_ERROR_MESSAGE', message)
-    log(message, LOG_LEVEL_ERROR, False, bold)
+import unreal
 
 ######################
 ######################
@@ -176,7 +110,6 @@ def set_env_win(key, value, override=False):
         # 运行设置环境变量命令
         bat_cmd = ADD_ENV.format(
             user='me', key=key, value=value, override=override)
-        # info('=> run cmd : \n {}'.format(bat_cmd))
         tmp_bat_name = 'SET_ENV.bat'
         f = open(tmp_bat_name, 'w+')
         f.write(bat_cmd)
@@ -184,11 +117,9 @@ def set_env_win(key, value, override=False):
         execute('./{}'.format(tmp_bat_name), verbose=True)
         os.remove(tmp_bat_name)
         if override:
-            info('=> Set system environment {0}={1} finished.'.format(
-                key, value))
+            unreal.log('=> Set system environment {0}={1} finished.'.format(key, value))
         else:
-            info('=> Append {1} to system environment key {0}.'.format(
-                key, value))
+            unreal.log('=> Append {1} to system environment key {0}.'.format(key, value))
 
 ########################
 ########################
@@ -202,7 +133,7 @@ def search_pattern(pattern, validator=None):
         volumes = get_all_volumes()
         for volume in volumes:
             seach_path = os.path.join(volume, pattern)
-            info('=> Searching at {}'.format(seach_path), False)
+            unreal.log('=> Searching at {}'.format(seach_path))
             result = glob.glob(seach_path, recursive=True)
             if len(result) > 0:
                 for find_path in result:
@@ -218,13 +149,13 @@ def copy_files(target_path, src_file_list):
             deploy_dir = os.path.dirname(deploy_file_path)
             if not os.path.exists(deploy_dir):
                 os.makedirs(deploy_dir)
-                info('Makedirs => {}'.format(deploy_dir))
+                unreal.log('Makedirs => {}'.format(deploy_dir))
             if os.path.isfile(deploy_file_path):
                 os.remove(deploy_file_path)
-                info('Removed => {}'.format(deploy_file_path))
+                unreal.log('Removed => {}'.format(deploy_file_path))
 
             shutil.copy(src_file, deploy_file_path)
-            info('Copy file from {} to => {}'.format(src_file, deploy_file_path))
+            unreal.log('Copy file from {} to => {}'.format(src_file, deploy_file_path))
 
 
 def read_file(file, decode='utf-8'):
@@ -236,7 +167,7 @@ def read_file(file, decode='utf-8'):
         content = content.decode(decode)
         return content
     else:
-        error('{} is not found or is not a file'.format(file))
+        unreal.log_error('{} is not found or is not a file'.format(file))
 
 
 def get_all_volumes():
@@ -252,8 +183,9 @@ def get_all_volumes():
                 legal_volumes.append(s)
         return legal_volumes
 
+
 def get_files(work_dir, include_patterns=None, ignore_patterns=None, follow_links=False, recursive=True, apply_ignore_when_conflick=True):
-    # ** 
+    """
     # 根据包含规则和忽略规则，获得指定目录下的文件列表
     #
     # @work_dir (str)
@@ -270,7 +202,7 @@ def get_files(work_dir, include_patterns=None, ignore_patterns=None, follow_link
     #   是否递归
     # @apply_ignore_when_conflick (bool)
     #   包含规则与忽略规则冲突时，优先遵守忽略规则
-    # **
+    """
     if os.path.isfile(work_dir):
         result = [work_dir]
     else:
@@ -333,7 +265,7 @@ def format_args(args):
     elif type(args) is str:
         return args
     else:
-        info('Unsupported args type : {}'.format(type(args)))
+        unreal.log('Unsupported args type : {}'.format(type(args)))
         return ' '
 
 
@@ -342,9 +274,7 @@ def execute_straight(cmd, args, verbose=True, ignore_error=False, use_direct_std
     cmd_line = '{0} {1}'.format(cmd, args)
 
     if verbose:
-        global LOG_INDENT
-        LOG_INDENT += 1
-        info('=> Shell: {}'.format(cmd_line), True)
+        unreal.log('=> Shell: {}'.format(cmd_line))
 
     set_env('__SCRIPT_ERROR', None)
     start_time = time.time()
@@ -361,16 +291,12 @@ def execute_straight(cmd, args, verbose=True, ignore_error=False, use_direct_std
         result.code = pipes.returncode
 
     if verbose:
-        info('<= Finished: {0} {1:.2f} seconds'.format(
-            os.path.basename(cmd), time.time() - start_time), True)
+        unreal.log('<= Finished: {0} {1:.2f} seconds'.format(os.path.basename(cmd), time.time() - start_time))
 
     if not ignore_error and result.code != 0:
         if verbose:
-            error('Command failed: {} \n code: {} \n message: {}'.format(
-                cmd_line, result.code, result.error if result.error != '' else result.out), True)
+            unreal.log_error('Command failed: {} \n code: {} \n message: {}'.format(cmd_line, result.code, result.error if result.error != '' else result.out))
         sys.exit(-1)
-    if verbose:
-        LOG_INDENT -= 1
     return result
 
 
@@ -397,16 +323,10 @@ def execute(script, args, work_dir=None, verbose=True, ignore_error=False, use_d
 
 
 def execute_module(module, *module_parameters):
-    global LOG_INDENT
-    LOG_INDENT += 1
-
     module_name = module.__name__
-    info('=> Module: {}'.format(module_name), True)
+    unreal.log('=> Module: {}'.format(module_name))
     set_env('__SCRIPT_ERROR', None)
     start_time = time.time()
     result = module.main(*module_parameters)
-    info('<= Finished: {0} {1:.2f} seconds '.format(
-        module_name, time.time() - start_time), True)
-
-    LOG_INDENT -= 1
+    unreal.log('<= Finished: {0} {1:.2f} seconds '.format(module_name, time.time() - start_time))
     return result
