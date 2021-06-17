@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Engine/EngineTypes.h"
 #include "Engine/DeveloperSettings.h"
 #include "ProtobufSetting.generated.h"
 /**

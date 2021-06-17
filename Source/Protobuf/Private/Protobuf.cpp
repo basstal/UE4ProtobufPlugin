@@ -195,8 +195,8 @@ void FProtobufModule::RegisterSettings() const
 	{
 		FDirectoryPath DirectoryPath;
 		DirectoryPath.Path = AddPath;
+		UE_LOG(LogProtobuf, Log, TEXT("DirectoryPath Added : %s"), *DirectoryPath.Path);
 		PackagingSettings->DirectoriesToAlwaysStageAsUFS.Add(DirectoryPath);
-		PackagingSettings->SaveConfig();
 		PackagingSettings->UpdateDefaultConfigFile();
 	}
 #endif // WITH_EDITOR

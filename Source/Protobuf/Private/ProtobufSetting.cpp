@@ -3,12 +3,12 @@
 #include "ProtobufSetting.h"
 
 #if WITH_EDITOR
-void UProtobufUserSetting::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override
+void UProtobufUserSetting::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-void UProtobufSetting::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override
+void UProtobufSetting::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	/** 只截取相对路径 */
