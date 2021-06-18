@@ -1,6 +1,6 @@
 from pb_helper import pb_helper
 import utility as u
-
+import unreal
 
 class pb_shell:    
     def __init__(self, pb_type):
@@ -57,12 +57,12 @@ class pb_shell:
         if descriptor_field is not None:
             if descriptor_field.label == pb_helper.FieldDescriptor.LABEL_REPEATED:
                 if excel_index is None:
-                    self.unreal.log_warning("descriptor_field : {} need a repeated field assigning !".format(descriptor_field))
+                    unreal.log_warning("descriptor_field : {} need a repeated field assigning !".format(descriptor_field))
                     return
                 # ** repeated
                 repeated_field = getattr(self.instance, name)
                 if repeated_field is None:
-                    self.unreal.log_warning('{} field in {} is None?'.format(name, self.instance))
+                    unreal.log_warning('{} field in {} is None?'.format(name, self.instance))
                 if descriptor_field.type == pb_helper.FieldDescriptor.TYPE_MESSAGE:
                     if descriptor_field.number in self.exi_to_rpi_by_dscn:
                         reflection = self.exi_to_rpi_by_dscn[descriptor_field.number]
@@ -85,4 +85,4 @@ class pb_shell:
                 resolved_value = self.resolve_value_by_descriptor(descriptor_field, value)
                 setattr(instance, name, resolved_value)
         else:
-            self.unreal.log_warning("{} is not a member of {}. 可以在表中删除该列，或将该列的第二行字段名改为空以屏蔽该警告。".format(name, type(self.instance)))
+            unreal.log_warning("{} is not a member of {}. 可以在表中删除该列，或将该列的第二行字段名改为空以屏蔽该警告。".format(name, type(self.instance)))

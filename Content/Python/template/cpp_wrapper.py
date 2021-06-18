@@ -48,11 +48,13 @@ ${#-----------------------------------------------------}$
 ${#-----处理 enums_wrapper 生成所有 Enum 的包装-----}$
 ${#-----------------------------------------------------}$
 ${for enum_wrapper in enums_wrapper:}$
-UENUM()
-enum class E${enum_wrapper["enumname"]}$ : int32
+${enumname = enum_wrapper["enumname"]}$
+UENUM(${enum_wrapper["uenum_specifiers"]}$)
+enum class E${enumname}$ : uint8
 {
 	${for enum_value in enum_wrapper['pb_enum_values']:}$
-    ${enum_value.name}$ = ${enum_value.number}$,
+    ${enum_value_name = enum_value.name.replace(f'{enumname}_', '')}$
+    ${enum_value_name}$ = ${enum_value.number}$,
     ${:end-for}$
 };
 ${:end-for}$
@@ -62,7 +64,9 @@ ${#-----处理 classes_wrapper 的一些帮助函数和数据结构-----}$
 ${#-----------------------------------------------------}$
 ${
 def transfor_pb_type_to_ue_type(pb_field): 
-    # 对于每个字段，将pb类型转换成ue支持的类型
+    """
+    对于每个字段，将pb类型转换成ue支持的类型
+    """
     if pb_field.type == FieldDescriptor.TYPE_ENUM:
         content = f'E{pb_field.enum_type.name}'
     elif pb_field.type == FieldDescriptor.TYPE_MESSAGE:
@@ -71,13 +75,25 @@ def transfor_pb_type_to_ue_type(pb_field):
         content = pb_type_to_ue_type_map[pb_field.type]
     return content
 
+def transfor_pk_type(ue_type_str):
+    """
+    转换为主键类型，接受一个ue_type的str
+    """
+    if ue_type_str == 'FString':
+        return 'FName'
+    else:
+        return ue_type_str
+
 def wrap_repeated_field(pb_field, content):
-    # 如果是Repeated字段则用TArray包装
+    """
+    如果是Repeated字段则用TArray包装
+    """
     if pb_field.label == FieldDescriptor.LABEL_REPEATED:
         return f'TArray<{content}>'
     else:
         return content
 }$
+
 ${
     # 能够直接转换的值类型
     direct_value_type = [
@@ -97,8 +113,10 @@ ${
     ]
 }$
 ${
-    # 对于每个Repeated的字段，将Message的值包装成TArray
 def transfor_repeated_value(pb_field, text_format):
+    """
+    对于每个Repeated的字段，将Message的值包装成TArray
+    """
     repeated = f'Repeated_{pb_field.name}'
 
     if pb_field.type == FieldDescriptor.TYPE_STRING or pb_field.type == FieldDescriptor.TYPE_BYTES:
@@ -135,14 +153,19 @@ def transfor_repeated_value(pb_field, text_format):
     return text_format.join(content)
 }$
 ${
-    # 对于每个字段，将Message的值转换为ue支持的值
-def transfor_pb_value_to_ue_value(pb_field, text_format):
-    # Repeated字段需要特别处理转换
+def transfor_pb_value_to_ue_value(pb_field, text_format, option_pk_fields):
+    """
+    对于每个字段，将Message的值转换为ue支持的值
+    Repeated字段需要特别处理转换
+    """
     if pb_field.label == FieldDescriptor.LABEL_REPEATED:
         return transfor_repeated_value(pb_field, text_format)
 
     if pb_field.type == FieldDescriptor.TYPE_STRING or pb_field.type == FieldDescriptor.TYPE_BYTES:
-        return f'{pb_field.name} = FString(PBData->{pb_field.name.lower()}().c_str())'
+        if pb_field in option_pk_fields:
+            return f'{pb_field.name} = FName(PBData->{pb_field.name.lower()}().c_str())'
+        else:
+            return f'{pb_field.name} = FString(PBData->{pb_field.name.lower()}().c_str())'
     elif pb_field.type == FieldDescriptor.TYPE_ENUM:
         return f'{pb_field.name} = E{pb_field.enum_type.name}(PBData->{pb_field.name.lower()}())'
     else:
@@ -153,6 +176,7 @@ ${#-----------------------------------------------------}$
 ${#-----处理 classes_wrapper 生成所有 Message 的包装-----}$
 ${#-----------------------------------------------------}$
 ${for class_wrapper in classes_wrapper:}$
+${option_pk_fields = class_wrapper["option_pk_fields"]}$
 UCLASS()
 class U${class_wrapper["classname"]}$Wrap : public UExcelRow
 {
@@ -169,7 +193,9 @@ public:
     ${if pb_field in class_wrapper['option_uasset_fields']:}$
     FSoftObjectPath ${pb_field.name}$;
     ${:else:}$
-    ${write(wrap_repeated_field(pb_field, transfor_pb_type_to_ue_type(pb_field)))}$ ${pb_field.name}$;
+    ${ue_type = transfor_pb_type_to_ue_type(pb_field)}$
+    ${ue_type = ue_type if not pb_field in option_pk_fields else transfor_pk_type(ue_type)}$
+    ${write(wrap_repeated_field(pb_field, ue_type))}$ ${pb_field.name}$;
     ${:end-if}$
     ${:end-for}$
 protected:
@@ -190,7 +216,7 @@ protected:
             ${if pb_field in class_wrapper['option_uasset_fields']:}$
             ${pb_field.name}$ = FSoftObjectPath(PBData->${write(pb_field.name.lower())}$().c_str());
             ${:else:}$
-            ${write(transfor_pb_value_to_ue_value(pb_field, '\t'*3))}$;
+            ${write(transfor_pb_value_to_ue_value(pb_field, '\t'*3, option_pk_fields))}$;
             ${:end-if}$
             ${:end-for}$
         }
@@ -204,14 +230,15 @@ ${#处理 excels_wrapper 生成有对应 Excel 表的所有 Message 的包装}$
 ${#-----------------------------------------------------}$
 ${for excel_wrapper in excels_wrapper:}$
 ${row_classname = f'U{excel_wrapper["excelname"]}Wrap'}$
-${pk_fields_count = len(excel_wrapper["option_pk_fields"])}$
+${option_pk_fields = excel_wrapper["option_pk_fields"]}$
+${pk_fields_count = len(option_pk_fields)}$
 UCLASS()
 class U${excel_wrapper["excelname"]}$Excel : public UExcel
 {
 	GENERATED_BODY()
 public:
 	UPROPERTY()
-	TArray<${row_classname}$ *> Rows;
+	TArray<const ${row_classname}$ *> Rows;
     
 protected:
 	virtual void Load(TArray<uint8>& Bytes) override
@@ -236,20 +263,20 @@ protected:
 
 ${#仅有一个主键}$
 ${if pk_fields_count == 1:}$
-    ${pk_ue_type = transfor_pb_type_to_ue_type(excel_wrapper["option_pk_fields"][0])}$
+    ${pk_ue_type = transfor_pk_type(transfor_pb_type_to_ue_type(option_pk_fields[0]))}$
     UPROPERTY()
-    TMap<${pk_ue_type}$, ${row_classname}$ *> PK_To_Row;
+    TMap<${pk_ue_type}$, const ${row_classname}$ *> PK_To_Row;
     void LoadPKMap()
     {
-        for ( auto Row : Rows)
+        for ( const ${row_classname}$ * Row : Rows)
         {
-            PK_To_Row.Add(Row->${excel_wrapper["option_pk_fields"][0].name}$, Row);
+            PK_To_Row.Add(Row->${option_pk_fields[0].name}$, Row);
         }
     }
 public:
-    ${row_classname}$ * Get(${pk_ue_type}$ PKValue)
+    const ${row_classname}$ * Get(${pk_ue_type}$ PKValue) const
     {
-    	${row_classname}$ ** FindResult = PK_To_Row.Find(PKValue);
+    	const ${row_classname}$ * const * FindResult = PK_To_Row.Find(PKValue);
     	if (FindResult)
     	{
     		return *FindResult;
@@ -263,7 +290,8 @@ ${#大于一个主键}$
 ${if pk_fields_count > 1:}$
 ${for i in range(0, pk_fields_count):}$
     UPROPERTY()
-    TMap<${write(transfor_pb_type_to_ue_type(excel_wrapper["option_pk_fields"][i]))}$, ${row_classname}$ *> PK${i}$_To_Row;
+    ${pk_ue_type = transfor_pk_type(transfor_pb_type_to_ue_type(option_pk_fields[i]))}$
+    TMap<${write(pk_ue_type)}$, const ${row_classname}$ *> PK${i}$_To_Row;
 ${:end-for}$
     void LoadPKMapRows()
     {

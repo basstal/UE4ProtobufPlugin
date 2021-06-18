@@ -14,10 +14,11 @@ from templite import Templite
 
 import unreal
 
+
 def get_pb_field_ref(excel_field_name):
     """
     根据excel列描述名称[第二列的字符串]，生成对应的pb message字段映射，这里处理了 '.' 操作获得子Message以及 '[]' 操作获得repeated字段按下标索引
-    
+
     @excel_field_name (str)
       excel列描述名称
     """
@@ -44,7 +45,7 @@ def validate(excel_instances):
 def output_binaries(excel_instances, output_path, type_name):
     """
     将序列化的内容输出到指定的文件路径
-     
+
     @excel_instances (list(object<Message>))
       已序列化对象的列表
     @output_path (str)
@@ -74,7 +75,7 @@ def output_binaries(excel_instances, output_path, type_name):
 def excel_binarization(excel, type_name, verbose=True):
     """
     序列化指定的excel中每一行到指定的pb类型
-     
+
     @excel (str)
       excel文件的完整路径
     @type_name (str)
@@ -160,7 +161,7 @@ def get_bin():
 def make_args(dir, ignore_patterns=None):
     """
     生成 protoc 执行时需要的 .proto 文件对应的路径参数
-   
+
     @dir (str)
       proto文件所在根目录
     @ignore_patterns (list(str))
@@ -170,7 +171,13 @@ def make_args(dir, ignore_patterns=None):
 
     # ** NOTE:省略了比较时间戳和过滤生成
     if len(proto_files) > 0:
-        args = [f"--proto_path=\"{dir}\""]
+        project_plugins_dir = unreal.Paths.project_plugins_dir()
+        include_path = os.path.abspath(os.path.normpath(os.path.join(project_plugins_dir, "Protobuf/Content/Proto/")))
+        args = [
+            f"--proto_path=\"{dir}\"",
+            f"--proto_path=\"{include_path}\"",
+        ]
+        proto_files.extend(u.get_files(include_path, ["*.proto", ignore_patterns]))
         for proto_file in proto_files:
             args.append(f"\"{proto_file}\"")
         return args
@@ -218,10 +225,11 @@ def filter_by_option_descriptor(pb_fields, option_field_descriptor_name):
             result_fields.append(pb_field)
     return result_fields
 
+
 def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
     """
     生成UE的cpp包装，将excel对应的Message全部转换到UCLASS，这部分cpp代码是靠templite模板生成的
-    
+
     @output_path (str)
       excel文件的完整路径
     @cpp_excel_wrapper (str)
@@ -230,36 +238,43 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
     cpp_wrapper_content_by_modules = {}
     for module in pb_helper.loaded_modules:
         # ** NOTE:仅windows生效
-        if 'google\\protobuf' in module.__file__:
+        if 'google\\protobuf' in module.__file__ or 'options_ext' in module.__file__:
             continue
         pb_imports = []
         for dependency in module.DESCRIPTOR.dependencies:
-            if 'google/protobuf' in dependency.name:
+            if 'options_ext' in dependency.name:
                 continue
             pb_imports.append(dependency.name.replace('.proto', ''))
-        
+
         # ** NOTE:根据模块将类写入对应wrapper中
         classes_wrapper = []
         for message_name in module.DESCRIPTOR.message_types_by_name:
             pb_type = getattr(module, message_name)
             pb_fields = pb_type.DESCRIPTOR.fields
             option_uasset_fields = filter_by_option_descriptor(pb_fields, 'uasset')
+            option_pk_fields = filter_by_option_descriptor(pb_fields, 'pk')
             class_wrapper = {
                 'classname': message_name,
                 'pb_fields': pb_fields,
-                'option_uasset_fields' : option_uasset_fields,
+                'option_uasset_fields': option_uasset_fields,
+                'option_pk_fields': option_pk_fields,
             }
             classes_wrapper.append(class_wrapper)
 
         enums_wrapper = []
         for enum_name in module.DESCRIPTOR.enum_types_by_name:
+            uenum_specifiers = ''
             pb_enum = getattr(module, enum_name)
+            options = pb_enum.DESCRIPTOR.GetOptions()
+            for option_field_descriptor, option_field_value in options.ListFields():
+                if option_field_descriptor.name == 'uenum':
+                    uenum_specifiers = option_field_value
             enum_wrapper = {
                 'enumname': enum_name,
-                'pb_enum_values': pb_enum.DESCRIPTOR.values
+                'pb_enum_values': pb_enum.DESCRIPTOR.values,
+                'uenum_specifiers': uenum_specifiers
             }
             enums_wrapper.append(enum_wrapper)
-
 
         # ** NOTE:模板中会根据以下数据生成对应的cpp类，其中：
         # ** classes_wrapper生成class是对pb中Message定义的包装，
@@ -269,8 +284,8 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
         cpp_wrapper_content_by_modules[module] = {
             'classes_wrapper': classes_wrapper,
             'enums_wrapper': enums_wrapper,
-            'excels_wrapper' : [],
-            'pb_imports' : pb_imports,
+            'excels_wrapper': [],
+            'pb_imports': pb_imports,
         }
 
     for excel_wrapper in cpp_excel_wrapper:
@@ -278,16 +293,21 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
         if pb_type is None:
             # ** 跳过非本模块的excel定义
             continue
-        pb_fields = pb_type.DESCRIPTOR.fields
-        excels_wrapper = cpp_wrapper_content_by_modules[module]['excels_wrapper']
-        option_pk_fields = filter_by_option_descriptor(pb_fields, 'pk')
+        cpp_wrapper_content = cpp_wrapper_content_by_modules[module]
+        classes_wrapper = cpp_wrapper_content['classes_wrapper']
+        # ** 找到Excel对应的class包装，直接从中获取Excel包装需要的数据
+        excel_class_wrapper = None
+        for class_wrapper in classes_wrapper:
+            if class_wrapper['classname'] == excel_wrapper:
+                excel_class_wrapper = class_wrapper
+                break
+        excels_wrapper = cpp_wrapper_content['excels_wrapper']
         excel_wrapper = {
             'excelname': excel_wrapper,
-            'pb_fields': pb_fields,
-            'option_pk_fields' : option_pk_fields,
+            'pb_fields': excel_class_wrapper['pb_fields'],
+            'option_pk_fields': excel_class_wrapper['option_pk_fields'],
         }
         excels_wrapper.append(excel_wrapper)
-
 
     from template.cpp_wrapper import cpp_wrapper_template, pb_type_to_ue_type_map
     if not os.path.exists(output_path):
@@ -299,7 +319,7 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
         cpp_wrapper_content = cpp_wrapper_content_by_modules[module]
         all_class_wrapper.extend(cpp_wrapper_content['classes_wrapper'])
         all_excel_wrapper.extend(cpp_wrapper_content['excels_wrapper'])
-        
+
     # 处理友元类
     for class_wrapper in all_class_wrapper:
         class_friend_classes = [] if 'class_friend_classes' not in class_wrapper else class_wrapper['class_friend_classes']
@@ -316,7 +336,7 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
                         inner_class_friend_classes.append(f'{class_wrapper["classname"]}Wrap')
                         inner_class_wrapper['class_friend_classes'] = inner_class_friend_classes
         class_wrapper['class_friend_classes'] = class_friend_classes
-        
+
     for module in cpp_wrapper_content_by_modules:
         # unreal.log(f"generated module name -> {module.__name__}")
         cpp_wrapper_content = cpp_wrapper_content_by_modules[module]
@@ -333,16 +353,17 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
         cpp_wrapper_content = Templite(cpp_wrapper_template).render(
             classes_wrapper=cpp_wrapper_content['classes_wrapper'],
             enums_wrapper=cpp_wrapper_content['enums_wrapper'],
-            excels_wrapper = cpp_wrapper_content['excels_wrapper'],
-            pb_imports = cpp_wrapper_content['pb_imports'],
+            excels_wrapper=cpp_wrapper_content['excels_wrapper'],
+            pb_imports=cpp_wrapper_content['pb_imports'],
             module_name=module_name,
             file_basename=file_basename,
             pb_type_to_ue_type_map=pb_type_to_ue_type_map,
             FieldDescriptor=pb_helper.FieldDescriptor)
-        
+
         # unreal.log(f"cpp_wrapper_content : {cpp_wrapper_content}")
         with open(file_path, 'w') as f:
             f.write(cpp_wrapper_content)
+
 
 def load_preference():
     """
@@ -360,10 +381,11 @@ def load_preference():
     if '/Script/Protobuf.ProtobufSetting' in config:
         return config['/Script/Protobuf.ProtobufSetting']
 
+
 def get_path_from_preference(preference, path_key):
     """
     从配置中获取指定路径，并转化为UE工程路径
-    
+
     @preference (dict())
       配置
     @path_key (str)
@@ -373,6 +395,7 @@ def get_path_from_preference(preference, path_key):
     pattern = re.compile(r'\(Path="(.*)"\)')
     match_result = pattern.match(preference_path)
     return os.path.abspath(os.path.normpath(os.path.join(unreal.Paths.project_dir(), match_result.group(1))))
+
 
 def generate_all():
     preference = load_preference()

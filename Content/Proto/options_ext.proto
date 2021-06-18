@@ -1,0 +1,49 @@
+// NOTE:这个文件不会生成任何对应的cpp文件，因此不要在这里添加非Options的Message、Enum等
+syntax = "proto3";
+import "google/protobuf/descriptor.proto";
+
+// extend google.protobuf.MessageOptions {
+//     // string urls             = 51001;
+//     // string view             = 51002;
+//     // string comment          = 51003;
+//     // bool   disable_log      = 51004;
+//     // bool   post_cache       = 51010;
+//     // string dynamicKey_field = 51015;
+//     // string staticKey_field  = 51016;
+//     // string key_field        = 51017;
+//     // string expire_field     = 51018;
+//     // string db_field         = 51019;
+//     // string model_type       = 51021;
+//     // bool   need_zip         = 51022;
+//     // string version          = 51023;
+//     // uint32 lm_order         = 51024;
+// }
+
+extend google.protobuf.FieldOptions {
+    bool pk     = 40001;
+    bool uasset = 700001;   // 是ue资源索引
+    // string         field_tooltip  = 40002;
+    // string         fc             = 61002;
+    // bool           hide_desc      = 610003;
+    // string         pack           = 610009;
+    // bool           pb_default     = 610010;
+    // bool           scalar         = 610011;
+    // bool           zip            = 610012;
+    // string         fk             = 610013;   //资源检查使用
+    // repeated int32 rk             = 610014;   //资源检查使用
+    // bool           res_id_field   = 610015;   //资源检查使用
+    // bool           res_type_field = 610016;   //资源检查使用
+    // int32          kg             = 610017;   //数据档按key分组
+    // int32          uni            = 610018;   //数据档的唯一key
+}
+
+extend google.protobuf.EnumOptions {
+    // string ec       = 60001;
+    // bool   res_type = 60002;   //资源检查使用
+    // uint32 le_order = 60003;
+    string uenum = 700001;   // 填在UENUM()括号中的说明符，供UE类型反射使用
+}
+
+extend google.protobuf.EnumValueOptions {
+    string evc = 60001;
+}
