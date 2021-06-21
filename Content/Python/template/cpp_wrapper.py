@@ -158,18 +158,28 @@ def transfor_pb_value_to_ue_value(pb_field, text_format, option_pk_fields):
     对于每个字段，将Message的值转换为ue支持的值
     Repeated字段需要特别处理转换
     """
+    common_format = ''
     if pb_field.label == FieldDescriptor.LABEL_REPEATED:
-        return transfor_repeated_value(pb_field, text_format)
-
-    if pb_field.type == FieldDescriptor.TYPE_STRING or pb_field.type == FieldDescriptor.TYPE_BYTES:
-        if pb_field in option_pk_fields:
-            return f'{pb_field.name} = FName(PBData->{pb_field.name.lower()}().c_str())'
-        else:
-            return f'{pb_field.name} = FString(PBData->{pb_field.name.lower()}().c_str())'
-    elif pb_field.type == FieldDescriptor.TYPE_ENUM:
-        return f'{pb_field.name} = E{pb_field.enum_type.name}(PBData->{pb_field.name.lower()}())'
+        common_format = transfor_repeated_value(pb_field, text_format)
     else:
-        return f'{pb_field.name} = PBData->{pb_field.name.lower()}()'
+        if pb_field.type == FieldDescriptor.TYPE_STRING or pb_field.type == FieldDescriptor.TYPE_BYTES:
+            if pb_field in option_pk_fields:
+                common_format = f'{pb_field.name} = FName(PBData->{pb_field.name.lower()}().c_str())'
+            else:
+                common_format = f'{pb_field.name} = FString(PBData->{pb_field.name.lower()}().c_str())'
+        elif pb_field.type == FieldDescriptor.TYPE_ENUM:
+            common_format = f'{pb_field.name} = E{pb_field.enum_type.name}(PBData->{pb_field.name.lower()}())'
+        elif pb_field.type == FieldDescriptor.TYPE_MESSAGE:
+            content = [
+                f'::google::protobuf::Message * {pb_field.name.lower()}Message = const_cast<ActionInputControl *>(&PBData->{pb_field.name.lower()}());{chr(10)}',
+                f'{pb_field.name} = NewObject<U{pb_field.message_type.name}Wrap>();{chr(10)}',
+                f'{pb_field.name}->Load({pb_field.name.lower()}Message)'
+            ]
+            common_format = text_format.join(content)
+        else:
+            common_format = f'{pb_field.name} = PBData->{pb_field.name.lower()}()'
+    # 最后一行的格式是统一的
+    return f'{common_format};{chr(10)}{text_format}'
 }$
 
 ${#-----------------------------------------------------}$
@@ -216,7 +226,7 @@ protected:
             ${if pb_field in class_wrapper['option_uasset_fields']:}$
             ${pb_field.name}$ = FSoftObjectPath(PBData->${write(pb_field.name.lower())}$().c_str());
             ${:else:}$
-            ${write(transfor_pb_value_to_ue_value(pb_field, '\t'*3, option_pk_fields))}$;
+            ${write(transfor_pb_value_to_ue_value(pb_field, '\t'*3, option_pk_fields))}$
             ${:end-if}$
             ${:end-for}$
         }

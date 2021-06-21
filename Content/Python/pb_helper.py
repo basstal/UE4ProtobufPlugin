@@ -41,8 +41,9 @@ class pb_helper:
         for file_path in u.get_files(pb_root_path, ["*_pb2.py"]):
             filename_without_ext = os.path.splitext(os.path.split(file_path)[1])[0]
             module_name = "{}".format(filename_without_ext)
-            module = importlib.import_module(module_name)
-            pb_helper.loaded_modules.append(module)
+            importlib.import_module(module_name)
+            # unreal.log(f"loaded module : {module_name}")
+            pb_helper.loaded_modules.append(module_name)
 
     @staticmethod
     def get_descriptor_field(instance, member):
@@ -55,12 +56,18 @@ class pb_helper:
         if pb_helper.loaded_modules is None:
             pb_helper.load_modules()
 
-        pb_type = None
-        for module in pb_helper.loaded_modules:
+        pb_type, result_module = None, None
+        # unreal.log(len(pb_helper.loaded_modules))
+        for loaded_module in pb_helper.loaded_modules:
+            # unreal.log(f" try find {type_name} in {loaded_module}")
             try:
+                module = sys.modules[loaded_module]
                 pb_type = getattr(module, type_name)
+                # unreal.log(f'result : {str(pb_type)}')
                 if pb_type is not None:
+                    result_module = loaded_module
                     break
             except:
-                pass
-        return pb_type, module
+                continue
+        
+        return pb_type, result_module

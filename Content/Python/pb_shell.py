@@ -24,7 +24,7 @@ class pb_shell:
                 except:
                     resolved_value = enum_type.values_by_name["{}_{}".format(enum_type.name, value)].number
             else:
-                unreal.log_warning(f"Warning: 不应该在枚举类型对应的列{descriptor_field.name}填写number类型数据 : {value}")
+                unreal.log_warning(f"不应该在枚举类型对应的列{descriptor_field.name}填写number类型数据 : {value}")
                 resolved_value = int(value)
         else:
             if type(value) == str:
@@ -60,12 +60,12 @@ class pb_shell:
         if descriptor_field is not None:
             if descriptor_field.label == pb_helper.FieldDescriptor.LABEL_REPEATED:
                 if excel_index is None:
-                    unreal.log_warning("Warning: descriptor_field : {} need a repeated field assigning !".format(descriptor_field))
+                    unreal.log_warning("descriptor_field : {} need a repeated field assigning !".format(descriptor_field))
                     return
                 # ** repeated
                 repeated_field = getattr(self.instance, name)
                 if repeated_field is None:
-                    unreal.log_warning('Warning: {} field in {} is None?'.format(name, self.instance))
+                    unreal.log_warning('{} field in {} is None?'.format(name, self.instance))
                 if descriptor_field.type == pb_helper.FieldDescriptor.TYPE_MESSAGE:
                     if descriptor_field.number in self.exi_to_rpi_by_dscn:
                         reflection = self.exi_to_rpi_by_dscn[descriptor_field.number]
@@ -88,4 +88,4 @@ class pb_shell:
                 resolved_value = self.resolve_value_by_descriptor(descriptor_field, value)
                 setattr(instance, name, resolved_value)
         else:
-            unreal.log_warning("Warning: {} is not a member of {}. 可以在表中删除该列，或将该列的第二行字段名改为空以屏蔽该警告。".format(name, type(self.instance)))
+            unreal.log_warning("{} is not a member of {}. 可以在表中删除该列，或将该列的第二行字段名改为空以屏蔽该警告。".format(name, type(self.instance)))

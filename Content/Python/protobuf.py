@@ -1,5 +1,6 @@
 import time
 
+import sys
 import re
 import configparser
 import os
@@ -8,12 +9,13 @@ import traceback
 
 import utility as u
 from pb_shell import pb_shell
-from pb_helper import pb_helper
 import openpyxl
 from templite import Templite
 
 import unreal
 
+def get_options_ext_name():
+    return 'options_ext'
 
 def get_pb_field_ref(excel_field_name):
     """
@@ -56,9 +58,11 @@ def output_binaries(excel_instances, output_path, type_name):
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     # ** 构造excel的包装类，将实例数据都填充到rows字段中
+    from pb_helper import pb_helper
     excel_wrap_type, _ = pb_helper.get_type_with_module('Excel')
     if excel_wrap_type is None:
         unreal.log_error('wrap type "{0}" not found . failed to output excel'.format(excel_wrap_type))
+        sys.exit(-1)
     excel_wrap = excel_wrap_type()
     setattr(excel_wrap, 'excelName', type_name)
     rows = getattr(excel_wrap, 'rows')
@@ -83,11 +87,12 @@ def excel_binarization(excel, type_name, verbose=True):
     @verbose (bool)
       是否显示序列化log信息
     """
+    from pb_helper import pb_helper
     pb_type, _ = pb_helper.get_type_with_module(type_name)
     result = []
     if pb_type is None:
         unreal.log_error('pb type "{0}" not found . failed to binarization excel "{1}"'.format(type_name, excel))
-        return result
+        sys.exit(-1)
 
     workbook = openpyxl.load_workbook(excel)
     worksheet = workbook.worksheets[0]
@@ -182,7 +187,7 @@ def make_args(dir, ignore_patterns=None):
             args.append(f"\"{proto_file}\"")
         return args
     else:
-        unreal.log_warning("Warning: No proto files in {} ??".format(dir))
+        unreal.log_warning("No proto files in {} ??".format(dir))
     return None
 
 
@@ -197,7 +202,7 @@ def generate_pbdef(proto_path, output_path, type):
         args = make_args(proto_path, ["*[\\/]google[\\/]*"])
         args.append(f"--cpp_out=\"{output_path}\"")
     else:
-        unreal.log_warning("Warning: not supported type {}".format(type))
+        unreal.log_warning("not supported type {}".format(type))
         return
     u.execute(get_bin(), args)
 
@@ -236,13 +241,16 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
       对应的pb message名称
     """
     cpp_wrapper_content_by_modules = {}
-    for module in pb_helper.loaded_modules:
+    from pb_helper import pb_helper
+    for loaded_module in pb_helper.loaded_modules:
+        module = sys.modules[loaded_module]
         # ** NOTE:仅windows生效
-        if 'google\\protobuf' in module.__file__ or 'options_ext' in module.__file__:
+        options_ext_name = get_options_ext_name()
+        if 'google\\protobuf' in module.__file__ or options_ext_name in module.__file__:
             continue
         pb_imports = []
         for dependency in module.DESCRIPTOR.dependencies:
-            if 'options_ext' in dependency.name:
+            if options_ext_name in dependency.name:
                 continue
             pb_imports.append(dependency.name.replace('.proto', ''))
 
@@ -281,19 +289,20 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
         # ** enums_wrapper生成enum是对pb中Enum定义的包装，
         # ** excels_wrapper生成class是对一个excel表的包装，仅对应有Excel表的Message才会生成这个class，这个是延后添加的，
         # ** pb_imports生成文件中依赖的其他生成文件，依据pb import依赖关系
-        cpp_wrapper_content_by_modules[module] = {
+        cpp_wrapper_content_by_modules[loaded_module] = {
             'classes_wrapper': classes_wrapper,
             'enums_wrapper': enums_wrapper,
             'excels_wrapper': [],
             'pb_imports': pb_imports,
         }
 
+    
     for excel_wrapper in cpp_excel_wrapper:
-        pb_type, module = pb_helper.get_type_with_module(excel_wrapper)
+        pb_type, loaded_module = pb_helper.get_type_with_module(excel_wrapper)
         if pb_type is None:
             # ** 跳过非本模块的excel定义
             continue
-        cpp_wrapper_content = cpp_wrapper_content_by_modules[module]
+        cpp_wrapper_content = cpp_wrapper_content_by_modules[loaded_module]
         classes_wrapper = cpp_wrapper_content['classes_wrapper']
         # ** 找到Excel对应的class包装，直接从中获取Excel包装需要的数据
         excel_class_wrapper = None
@@ -315,8 +324,8 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
 
     all_class_wrapper = []
     all_excel_wrapper = []
-    for module in cpp_wrapper_content_by_modules:
-        cpp_wrapper_content = cpp_wrapper_content_by_modules[module]
+    for loaded_module in cpp_wrapper_content_by_modules:
+        cpp_wrapper_content = cpp_wrapper_content_by_modules[loaded_module]
         all_class_wrapper.extend(cpp_wrapper_content['classes_wrapper'])
         all_excel_wrapper.extend(cpp_wrapper_content['excels_wrapper'])
 
@@ -337,10 +346,9 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
                         inner_class_wrapper['class_friend_classes'] = inner_class_friend_classes
         class_wrapper['class_friend_classes'] = class_friend_classes
 
-    for module in cpp_wrapper_content_by_modules:
-        # unreal.log(f"generated module name -> {module.__name__}")
-        cpp_wrapper_content = cpp_wrapper_content_by_modules[module]
-        module_name = module.__name__.replace('_pb2', '')
+    for loaded_module in cpp_wrapper_content_by_modules:
+        cpp_wrapper_content = cpp_wrapper_content_by_modules[loaded_module]
+        module_name = loaded_module.replace('_pb2', '')
 
         # ** NOTE:对每一个Proto文件中的所有Message生成一个对应的UCLASS包装
         file_basename = '{}Wrapper'.format(module_name)
@@ -348,7 +356,6 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
         if os.path.exists(file_path):
             os.remove(file_path)
 
-        # unreal.log(f"generated module classes_wrapper -> {classes_wrapper}")
 
         cpp_wrapper_content = Templite(cpp_wrapper_template).render(
             classes_wrapper=cpp_wrapper_content['classes_wrapper'],
@@ -360,7 +367,6 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
             pb_type_to_ue_type_map=pb_type_to_ue_type_map,
             FieldDescriptor=pb_helper.FieldDescriptor)
 
-        # unreal.log(f"cpp_wrapper_content : {cpp_wrapper_content}")
         with open(file_path, 'w') as f:
             f.write(cpp_wrapper_content)
 
@@ -429,6 +435,7 @@ def generate_all():
     cpp_proto_out = get_path_from_preference(preference, 'cpp_proto_out')
     ue_cpp_wrapper_out = get_path_from_preference(preference, 'ue_cpp_wrapper_out')
 
+    from pb_helper import pb_helper
     python_pb_out = pb_helper.get_pb_path()
     unreal.log("python_pbdef output path : {}".format(python_pb_out))
     generate_pbdef(proto_path, python_pb_out, 'python')
