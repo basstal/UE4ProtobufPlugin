@@ -182,7 +182,7 @@ def make_args(dir, ignore_patterns=None):
             args.append(f"\"{proto_file}\"")
         return args
     else:
-        unreal.log_warning("No proto files in {} ??".format(dir))
+        unreal.log_warning("Warning: No proto files in {} ??".format(dir))
     return None
 
 
@@ -197,7 +197,7 @@ def generate_pbdef(proto_path, output_path, type):
         args = make_args(proto_path, ["*[\\/]google[\\/]*"])
         args.append(f"--cpp_out=\"{output_path}\"")
     else:
-        unreal.log_warning("not supported type {}".format(type))
+        unreal.log_warning("Warning: not supported type {}".format(type))
         return
     u.execute(get_bin(), args)
 
@@ -396,20 +396,16 @@ def get_path_from_preference(preference, path_key):
     match_result = pattern.match(preference_path)
     return os.path.abspath(os.path.normpath(os.path.join(unreal.Paths.project_dir(), match_result.group(1))))
 
+def generate_excel_bin():
+    """
+    根据已生成的python pb和对应excel生成二进制pb数据
+    返回成功生成二进制pb数据对应的excel名称
 
-def generate_all():
+    """
     preference = load_preference()
 
     excel_path = get_path_from_preference(preference, 'excel_root_path')
-    proto_path = get_path_from_preference(preference, 'proto_root_path')
-    cpp_proto_out = get_path_from_preference(preference, 'cpp_proto_out')
     binaries_out = get_path_from_preference(preference, 'binaries_out')
-    ue_cpp_wrapper_out = get_path_from_preference(preference, 'ue_cpp_wrapper_out')
-
-    python_pb_out = pb_helper.get_pb_path()
-    unreal.log("python_pbdef output path : {}".format(python_pb_out))
-    generate_pbdef(proto_path, python_pb_out, 'python')
-    generate_pbdef(proto_path, cpp_proto_out, "cpp")
 
     excel_files = u.get_files(excel_path, ["*.xlsx", "*.xlsm"], ["*~$*.xlsx"], recursive=False)
     cpp_excel_wrapper = []
@@ -420,4 +416,23 @@ def generate_all():
             output_binaries(excel_instances, binaries_out, basename)
             cpp_excel_wrapper.append(basename)
 
+    return cpp_excel_wrapper
+    
+def generate_all():
+    """
+    生成所有pb相关内容，包括excel对应二进制pb数据、message对应cpp包装等
+    
+    """
+    preference = load_preference()
+
+    proto_path = get_path_from_preference(preference, 'proto_root_path')
+    cpp_proto_out = get_path_from_preference(preference, 'cpp_proto_out')
+    ue_cpp_wrapper_out = get_path_from_preference(preference, 'ue_cpp_wrapper_out')
+
+    python_pb_out = pb_helper.get_pb_path()
+    unreal.log("python_pbdef output path : {}".format(python_pb_out))
+    generate_pbdef(proto_path, python_pb_out, 'python')
+    generate_pbdef(proto_path, cpp_proto_out, "cpp")
+
+    cpp_excel_wrapper = generate_excel_bin()
     generate_cpp_wrapper(ue_cpp_wrapper_out, cpp_excel_wrapper)

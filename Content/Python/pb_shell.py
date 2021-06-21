@@ -13,30 +13,33 @@ class pb_shell:
     def resolve_value_by_descriptor(self, descriptor_field, value):
         resolved_value = None
         target_type = descriptor_field.type
-        if type(value) == str:
-            try:
-                cast_to_float = float(value) if len(value) > 0 else 0
-            except:
-                cast_to_float = 0
-        else:
-            cast_to_float = float(value)
+        
         if target_type is pb_helper.FieldDescriptor.TYPE_STRING or target_type is pb_helper.FieldDescriptor.TYPE_BYTES:
             resolved_value = str(value)
         elif target_type is pb_helper.FieldDescriptor.TYPE_ENUM:
-            try:
-                resolved_value = int(cast_to_float)
-            except:
+            if type(value) == str:
                 enum_type = descriptor_field.enum_type
                 try:
                     resolved_value = enum_type.values_by_name[value].number
                 except:
                     resolved_value = enum_type.values_by_name["{}_{}".format(enum_type.name, value)].number
-        elif target_type in pb_helper.TYPE_INT:
-            resolved_value = int(cast_to_float)
-        elif target_type is pb_helper.FieldDescriptor.TYPE_FLOAT or target_type is pb_helper.FieldDescriptor.TYPE_DOUBLE:
-            resolved_value = cast_to_float
-        elif target_type is pb_helper.FieldDescriptor.TYPE_BOOL:
-            resolved_value = (int(cast_to_float)) != 0
+            else:
+                unreal.log_warning(f"Warning: 不应该在枚举类型对应的列{descriptor_field.name}填写number类型数据 : {value}")
+                resolved_value = int(value)
+        else:
+            if type(value) == str:
+                try:
+                    cast_to_float = float(value) if len(value) > 0 else 0
+                except:
+                    cast_to_float = 0
+            else:
+                cast_to_float = float(value)
+            if target_type in pb_helper.TYPE_INT:
+                resolved_value = int(cast_to_float)
+            elif target_type is pb_helper.FieldDescriptor.TYPE_FLOAT or target_type is pb_helper.FieldDescriptor.TYPE_DOUBLE:
+                resolved_value = cast_to_float
+            elif target_type is pb_helper.FieldDescriptor.TYPE_BOOL:
+                resolved_value = (int(cast_to_float)) != 0
 
         return resolved_value
 
@@ -57,12 +60,12 @@ class pb_shell:
         if descriptor_field is not None:
             if descriptor_field.label == pb_helper.FieldDescriptor.LABEL_REPEATED:
                 if excel_index is None:
-                    unreal.log_warning("descriptor_field : {} need a repeated field assigning !".format(descriptor_field))
+                    unreal.log_warning("Warning: descriptor_field : {} need a repeated field assigning !".format(descriptor_field))
                     return
                 # ** repeated
                 repeated_field = getattr(self.instance, name)
                 if repeated_field is None:
-                    unreal.log_warning('{} field in {} is None?'.format(name, self.instance))
+                    unreal.log_warning('Warning: {} field in {} is None?'.format(name, self.instance))
                 if descriptor_field.type == pb_helper.FieldDescriptor.TYPE_MESSAGE:
                     if descriptor_field.number in self.exi_to_rpi_by_dscn:
                         reflection = self.exi_to_rpi_by_dscn[descriptor_field.number]
@@ -85,4 +88,4 @@ class pb_shell:
                 resolved_value = self.resolve_value_by_descriptor(descriptor_field, value)
                 setattr(instance, name, resolved_value)
         else:
-            unreal.log_warning("{} is not a member of {}. 可以在表中删除该列，或将该列的第二行字段名改为空以屏蔽该警告。".format(name, type(self.instance)))
+            unreal.log_warning("Warning: {} is not a member of {}. 可以在表中删除该列，或将该列的第二行字段名改为空以屏蔽该警告。".format(name, type(self.instance)))

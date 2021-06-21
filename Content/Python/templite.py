@@ -78,6 +78,9 @@ class Templite(object):
             part = part.replace('\\'.join(end), end)
             if i % 2 == 0:
                 if not part: continue
+                lines = part.splitlines()
+                if len(lines) > 1:
+                    if all(not l.strip() for l in lines): continue                
                 part = part.replace('\\', '\\\\').replace('"', '\\"')
                 part = '\t' * offset + 'write("""%s""")' % part
             else:
