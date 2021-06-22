@@ -70,7 +70,11 @@ def transfor_pb_type_to_ue_type(pb_field):
     if pb_field.type == FieldDescriptor.TYPE_ENUM:
         content = f'E{pb_field.enum_type.name}'
     elif pb_field.type == FieldDescriptor.TYPE_MESSAGE:
-        content = f'U{pb_field.message_type.name}Wrap*'
+        # 对于含有 b_ustruct option 的 message 要处理成结构
+        if get_option_value(pb_field.message_type.GetOptions(), 'b_ustruct'):
+            content = f'F{pb_field.message_type.name}'
+        else:
+            content = f'U{pb_field.message_type.name}Wrap*'
     else:
         content = pb_type_to_ue_type_map[pb_field.type]
     return content
@@ -92,6 +96,13 @@ def wrap_repeated_field(pb_field, content):
         return f'TArray<{content}>'
     else:
         return content
+
+def handle_ustruct(pb_field, class_wrapper):
+    b_ustruct = False if 'b_ustruct' not in class_wrapper else class_wrapper['b_ustruct']
+    if b_ustruct:
+        return f'{class_wrapper["name"].lower()}.{pb_field.name}'
+    else:
+        return pb_field.name
 }$
 
 ${
@@ -113,19 +124,19 @@ ${
     ]
 }$
 ${
-def transfor_repeated_value(pb_field, text_format):
+def transfor_repeated_value(pb_field, text_format, b_ustruct, classname):
     """
     对于每个Repeated的字段，将Message的值包装成TArray
     """
     repeated = f'Repeated_{pb_field.name}'
-
+    field_name = pb_field.name if not b_ustruct else f'{classname.lower()}.{pb_field.name}'
     if pb_field.type == FieldDescriptor.TYPE_STRING or pb_field.type == FieldDescriptor.TYPE_BYTES:
         content = [
             f'google::protobuf::RepeatedPtrField<std::string> {repeated} = PBData->{pb_field.name.lower()}();{chr(10)}',
             f'for(auto StrPtr = {repeated}.begin(); StrPtr != {repeated}.end(); ++ StrPtr){chr(10)}',
             f'{chr(123)}{chr(10)}',
             f'{chr(9)}std::string value = *StrPtr;{chr(10)}',
-            f'{chr(9)}{pb_field.name}.Add(FString(value.c_str()));{chr(10)}',
+            f'{chr(9)}{field_name}.Add(FString(value.c_str()));{chr(10)}',
             f'{chr(125)}'
         ]
     elif pb_field.type in direct_value_type :
@@ -134,7 +145,7 @@ def transfor_repeated_value(pb_field, text_format):
             f'for(auto ValuePtr = {repeated}.begin(); ValuePtr != {repeated}.end(); ++ ValuePtr){chr(10)}',
             f'{chr(123)}{chr(10)}',
             f'{chr(9)}google::protobuf::{pb_type_to_ue_type_map[pb_field.type]} value = *ValuePtr;{chr(10)}',
-            f'{chr(9)}{pb_field.name}.Add(value);{chr(10)}',
+            f'{chr(9)}{field_name}.Add(value);{chr(10)}',
             f'{chr(125)}'
         ]
     elif pb_field.type == FieldDescriptor.TYPE_MESSAGE:
@@ -147,20 +158,25 @@ def transfor_repeated_value(pb_field, text_format):
             f'{chr(9)}{namespace}::{pb_field.message_type.name} value = *ValuePtr;{chr(10)}',
             f'{chr(9)}U{pb_field.message_type.name}Wrap* {wrapname} = NewObject<U{pb_field.message_type.name}Wrap>();{chr(10)}',
             f'{chr(9)}{wrapname}->Load(&value);{chr(10)}',
-            f'{chr(9)}{pb_field.name}.Add({wrapname});{chr(10)}',
+            f'{chr(9)}{field_name}.Add({wrapname});{chr(10)}',
             f'{chr(125)}'
         ]
     return text_format.join(content)
 }$
 ${
-def transfor_pb_value_to_ue_value(pb_field, text_format, option_pk_fields):
+def transfor_pb_value_to_ue_value(pb_field, text_format, class_wrapper):
     """
     对于每个字段，将Message的值转换为ue支持的值
     Repeated字段需要特别处理转换
     """
+
+    option_pk_fields = class_wrapper['option_pk_fields']
+    b_ustruct = class_wrapper['b_ustruct']
+    classname = class_wrapper['name']
+
     common_format = ''
     if pb_field.label == FieldDescriptor.LABEL_REPEATED:
-        common_format = transfor_repeated_value(pb_field, text_format)
+        common_format = transfor_repeated_value(pb_field, text_format, b_ustruct, classname)
     else:
         if pb_field.type == FieldDescriptor.TYPE_STRING or pb_field.type == FieldDescriptor.TYPE_BYTES:
             if pb_field in option_pk_fields:
@@ -172,23 +188,61 @@ def transfor_pb_value_to_ue_value(pb_field, text_format, option_pk_fields):
         elif pb_field.type == FieldDescriptor.TYPE_MESSAGE:
             content = [
                 f'::google::protobuf::Message * {pb_field.name.lower()}Message = const_cast<ActionInputControl *>(&PBData->{pb_field.name.lower()}());{chr(10)}',
-                f'{pb_field.name} = NewObject<U{pb_field.message_type.name}Wrap>();{chr(10)}',
-                f'{pb_field.name}->Load({pb_field.name.lower()}Message)'
             ]
+            # 对于含有 b_ustruct option 的 message 要处理成结构
+            if get_option_value(pb_field.message_type.GetOptions(), 'b_ustruct'):
+                # 构造一个临时的 Wrap 用于 Load 数据
+                content.extend([
+                    f'U{pb_field.message_type.name}Wrap * {pb_field.name}Wrap = NewObject<U{pb_field.message_type.name}Wrap>();{chr(10)}',
+                    f'{pb_field.name}Wrap->Load({pb_field.name.lower()}Message);{chr(10)}',
+                    f'{pb_field.name} = CopyTemp({pb_field.name}Wrap->{pb_field.message_type.name.lower()})'
+                ])
+            else:
+                content.extend([
+                    f'{pb_field.name} = NewObject<U{pb_field.message_type.name}Wrap>();{chr(10)}',
+                    f'{pb_field.name}->Load({pb_field.name.lower()}Message)'
+                ])
             common_format = text_format.join(content)
         else:
             common_format = f'{pb_field.name} = PBData->{pb_field.name.lower()}()'
+        # 内部为USTRUCT结构
+        if b_ustruct:
+            common_format = f'{classname.lower()}.{common_format}'
     # 最后一行的格式是统一的
     return f'{common_format};{chr(10)}{text_format}'
 }$
+
+${#-----------------------------------------------------------}$
+${#-----处理 structs_wrapper 生成所有 纯数据的 Message 包装-----}$
+${#-----------------------------------------------------------}$
+${for struct_wrapper in structs_wrapper:}$
+${option_pk_fields = struct_wrapper["option_pk_fields"]}$
+USTRUCT(${struct_wrapper["ustruct_specifiers"]}$)
+struct F${struct_wrapper["name"]}$
+{
+    GENERATED_BODY()
+public:
+    ${for pb_field in struct_wrapper['pb_fields']:}$
+    UPROPERTY()
+    ${#处理是否为uasset}$
+    ${if pb_field in struct_wrapper['option_uasset_fields']:}$
+    FSoftObjectPath ${pb_field.name}$;
+    ${:else:}$
+    ${ue_type = transfor_pb_type_to_ue_type(pb_field)}$
+    ${ue_type = ue_type if not pb_field in option_pk_fields else transfor_pk_type(ue_type)}$
+    ${write(wrap_repeated_field(pb_field, ue_type))}$ ${pb_field.name}$;
+    ${:end-if}$
+    ${:end-for}$
+};
+${:end-for}$
 
 ${#-----------------------------------------------------}$
 ${#-----处理 classes_wrapper 生成所有 Message 的包装-----}$
 ${#-----------------------------------------------------}$
 ${for class_wrapper in classes_wrapper:}$
 ${option_pk_fields = class_wrapper["option_pk_fields"]}$
-UCLASS()
-class U${class_wrapper["classname"]}$Wrap : public UExcelRow
+UCLASS(${class_wrapper["uclass_specifiers"]}$)
+class U${class_wrapper["name"]}$Wrap : public UExcelRow
 {
     GENERATED_BODY()
 public:
@@ -197,36 +251,41 @@ public:
     friend class U${friend}$;
     ${:end-for}$
     
-    ${for pb_field in class_wrapper['pb_fields']:}$
     UPROPERTY()
-    ${#处理是否为uasset}$
-    ${if pb_field in class_wrapper['option_uasset_fields']:}$
-    FSoftObjectPath ${pb_field.name}$;
+    ${if class_wrapper["b_ustruct"]:}$
+        ${#ustruct}$
+    F${class_wrapper["name"]}$ ${write(class_wrapper["name"].lower())}$;
     ${:else:}$
-    ${ue_type = transfor_pb_type_to_ue_type(pb_field)}$
-    ${ue_type = ue_type if not pb_field in option_pk_fields else transfor_pk_type(ue_type)}$
+        ${#uclass}$
+        ${for pb_field in class_wrapper['pb_fields']:}$
+        ${#处理是否为uasset}$
+        ${if pb_field in class_wrapper['option_uasset_fields']:}$
+    FSoftObjectPath ${pb_field.name}$;
+        ${:else:}$
+        ${ue_type = transfor_pb_type_to_ue_type(pb_field)}$
+        ${ue_type = ue_type if not pb_field in option_pk_fields else transfor_pk_type(ue_type)}$
     ${write(wrap_repeated_field(pb_field, ue_type))}$ ${pb_field.name}$;
+        ${:end-if}$
+        ${:end-for}$
     ${:end-if}$
-    ${:end-for}$
 protected:
-    virtual void Load(std::string Bytes) override
+    virtual void Load(const std::string& Bytes) override
     {
-        ${class_wrapper["classname"]}$ PBData;
+        ${class_wrapper["name"]}$ PBData;
         PBData.ParseFromString(Bytes);
         Load(&PBData);
     }
 
-    virtual void Load(::google::protobuf::Message * Message) override
+    virtual void Load(const ::google::protobuf::Message * Message) override
     {
-        ${class_wrapper["classname"]}$ * PBData = reinterpret_cast<${class_wrapper["classname"]}$*>(Message);
-        if (PBData)
+        if (auto * PBData = reinterpret_cast<const ${class_wrapper["name"]}$*>(Message))
         {
             ${for pb_field in class_wrapper['pb_fields']:}$
             ${#处理是否为uasset}$
             ${if pb_field in class_wrapper['option_uasset_fields']:}$
-            ${pb_field.name}$ = FSoftObjectPath(PBData->${write(pb_field.name.lower())}$().c_str());
+            ${write(handle_ustruct(pb_field, class_wrapper))}$ = FSoftObjectPath(PBData->${write(pb_field.name.lower())}$().c_str());
             ${:else:}$
-            ${write(transfor_pb_value_to_ue_value(pb_field, '\t'*3, option_pk_fields))}$
+            ${write(transfor_pb_value_to_ue_value(pb_field, '\t'*3, class_wrapper))}$
             ${:end-if}$
             ${:end-for}$
         }
@@ -240,29 +299,33 @@ ${#处理 excels_wrapper 生成有对应 Excel 表的所有 Message 的包装}$
 ${#-----------------------------------------------------}$
 ${for excel_wrapper in excels_wrapper:}$
 ${row_classname = f'U{excel_wrapper["excelname"]}Wrap'}$
+${row_structname = f'F{excel_wrapper["excelname"]}'}$
 ${option_pk_fields = excel_wrapper["option_pk_fields"]}$
 ${pk_fields_count = len(option_pk_fields)}$
+${b_ustruct = excel_wrapper['b_ustruct']}$
 UCLASS()
 class U${excel_wrapper["excelname"]}$Excel : public UExcel
 {
 	GENERATED_BODY()
 public:
 	UPROPERTY()
-	TArray<const ${row_classname}$ *> Rows;
-    
+	TArray<${write(f'const {row_classname} *' if not b_ustruct else f'{row_structname}')}$> Rows;
 protected:
 	virtual void Load(TArray<uint8>& Bytes) override
 	{
 		Excel PBExcel;
 		PBExcel.ParseFromArray(Bytes.GetData(), Bytes.Num());
 
-		for (std::string RowContent : PBExcel.rows())
+		for (const std::string& RowContent : PBExcel.rows())
 		{
 			${row_classname}$ * AddRow = NewObject<${row_classname}$>();
 	
 			AddRow->Load(RowContent);
+            ${if b_ustruct:}$
+			Rows.Add(CopyTemp(AddRow->${write(excel_wrapper["excelname"].lower())}$));
+            ${:else:}$
 			Rows.Add(AddRow);
-	
+            ${:end-if}$
 		}
 
 
@@ -275,21 +338,21 @@ ${#仅有一个主键}$
 ${if pk_fields_count == 1:}$
     ${pk_ue_type = transfor_pk_type(transfor_pb_type_to_ue_type(option_pk_fields[0]))}$
     UPROPERTY()
-    TMap<${pk_ue_type}$, const ${row_classname}$ *> PK_To_Row;
+    TMap<${pk_ue_type}$, ${write(f'const {row_classname} *' if not b_ustruct else f'{row_structname}')}$> PK_To_Row;
     void LoadPKMap()
     {
-        for ( const ${row_classname}$ * Row : Rows)
+        for (auto Row : Rows)
         {
-            PK_To_Row.Add(Row->${option_pk_fields[0].name}$, Row);
+            PK_To_Row.Add(Row${write('->' if not b_ustruct else '.')}$${option_pk_fields[0].name}$, Row);
         }
     }
 public:
-    const ${row_classname}$ * Get(${pk_ue_type}$ PKValue) const
+    const ${write(f'{row_classname}' if not b_ustruct else f'{row_structname}')}$ * Get(${pk_ue_type}$ PKValue) const
     {
-    	const ${row_classname}$ * const * FindResult = PK_To_Row.Find(PKValue);
+    	auto FindResult = PK_To_Row.Find(PKValue);
     	if (FindResult)
     	{
-    		return *FindResult;
+    		return ${write('*' if not b_ustruct else '')}$FindResult;
     	}
     	return nullptr;
     }

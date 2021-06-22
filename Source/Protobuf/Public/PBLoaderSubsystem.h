@@ -9,7 +9,7 @@
  * Subsystem控制Excel的加载并缓存已加载的Excel
  */
 UCLASS()
-class PROTOBUF_API UPBLoaderSubsystem : public UGameInstanceSubsystem
+class PROTOBUF_API UPBLoaderSubsystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
 public:

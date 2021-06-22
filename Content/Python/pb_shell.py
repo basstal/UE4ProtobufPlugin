@@ -1,8 +1,13 @@
+import sys
 from pb_helper import pb_helper
 import utility as u
-import unreal
 
-class pb_shell:    
+from unreal_import_switch import unreal
+
+
+class pb_shell:
+    warn_fields = {}
+
     def __init__(self, pb_type):
         self.instance = pb_type()
         self.valid = False
@@ -24,7 +29,9 @@ class pb_shell:
                 except:
                     resolved_value = enum_type.values_by_name["{}_{}".format(enum_type.name, value)].number
             else:
-                unreal.log_warning(f"不应该在枚举类型对应的列{descriptor_field.name}填写number类型数据 : {value}")
+                if descriptor_field.name not in pb_shell.warn_fields:
+                    unreal.log_warning(f"不应该在枚举类型对应的列{descriptor_field.name}填写number类型数据 : {value}")
+                    pb_shell.warn_fields[descriptor_field.name] = True
                 resolved_value = int(value)
         else:
             if type(value) == str:
@@ -85,7 +92,11 @@ class pb_shell:
                     attr_value_instance = self.resolve_value_by_descriptor(descriptor_field, value)
                     repeated_field.append(attr_value_instance)
             else:
-                resolved_value = self.resolve_value_by_descriptor(descriptor_field, value)
-                setattr(instance, name, resolved_value)
+                if descriptor_field.type == pb_helper.FieldDescriptor.TYPE_MESSAGE:
+                    inner_message_instance = getattr(instance, name)
+                    self.write_field_value(pb_field_excel_ref[1:], value, inner_message_instance)
+                else:
+                    resolved_value = self.resolve_value_by_descriptor(descriptor_field, value)
+                    setattr(instance, name, resolved_value)
         else:
             unreal.log_warning("{} is not a member of {}. 可以在表中删除该列，或将该列的第二行字段名改为空以屏蔽该警告。".format(name, type(self.instance)))

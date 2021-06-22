@@ -15,7 +15,7 @@ UCLASS()
 class PROTOBUF_API UExcelRow : public UObject
 {
 	GENERATED_BODY()
-protected:
-	virtual void Load(std::string Bytes) {};
-	virtual void Load(::google::protobuf::Message * Message) {};
+public:
+	virtual void Load(const std::string& Bytes) {};
+	virtual void Load(const ::google::protobuf::Message * Message) {};
 };

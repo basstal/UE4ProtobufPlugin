@@ -12,7 +12,8 @@ from pb_shell import pb_shell
 import openpyxl
 from templite import Templite
 
-import unreal
+from unreal_import_switch import unreal
+
 
 def get_options_ext_name():
     return 'options_ext'
@@ -231,6 +232,54 @@ def filter_by_option_descriptor(pb_fields, option_field_descriptor_name):
     return result_fields
 
 
+def get_option_value(options, target_option):
+    """
+    从options结构中获得target_option的值，如果找不到返回空字符串
+
+    @options (object)
+      options字段，是DESCRIPTOR中的一个结构，详情见google\protobuf\descriptor.py
+
+    @target_option (str)
+      option名称，参考options_ext.proto定义
+    """
+    for option_field_descriptor, option_field_value in options.ListFields():
+        if option_field_descriptor.name == target_option:
+            return option_field_value
+    return ''
+
+
+def handle_friend_class(cpp_wrapper_content_by_modules):
+    """
+    处理友元类
+
+    @cpp_wrapper_content_by_modules (dict(str, dict()))
+      已加载并处理好的全部模块映射数据
+    """
+
+    all_class_wrapper = []
+    all_excel_wrapper = []
+    for loaded_module in cpp_wrapper_content_by_modules:
+        cpp_wrapper_content = cpp_wrapper_content_by_modules[loaded_module]
+        all_class_wrapper.extend(cpp_wrapper_content['classes_wrapper'])
+        all_excel_wrapper.extend(cpp_wrapper_content['excels_wrapper'])
+
+    for class_wrapper in all_class_wrapper:
+        class_friend_classes = [] if 'class_friend_classes' not in class_wrapper else class_wrapper['class_friend_classes']
+        # 自身Message的Excel包装能够使用自身的Load
+        for excel_wrapper in all_excel_wrapper:
+            if excel_wrapper["excelname"] == class_wrapper["name"]:
+                class_friend_classes.append(f'{excel_wrapper["excelname"]}Excel')
+        # 自身能使用子Message中的Load
+        for pb_field in class_wrapper['pb_fields']:
+            if pb_field.message_type is not None:
+                for inner_class_wrapper in all_class_wrapper:
+                    if inner_class_wrapper['name'] == pb_field.message_type.name:
+                        inner_class_friend_classes = [] if 'class_friend_classes' not in inner_class_wrapper else inner_class_wrapper['class_friend_classes']
+                        inner_class_friend_classes.append(f'{class_wrapper["name"]}Wrap')
+                        inner_class_wrapper['class_friend_classes'] = inner_class_friend_classes
+        class_wrapper['class_friend_classes'] = class_friend_classes
+
+
 def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
     """
     生成UE的cpp包装，将excel对应的Message全部转换到UCLASS，这部分cpp代码是靠templite模板生成的
@@ -256,31 +305,45 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
 
         # ** NOTE:根据模块将类写入对应wrapper中
         classes_wrapper = []
+        structs_wrapper = []
         for message_name in module.DESCRIPTOR.message_types_by_name:
             pb_type = getattr(module, message_name)
             pb_fields = pb_type.DESCRIPTOR.fields
             option_uasset_fields = filter_by_option_descriptor(pb_fields, 'uasset')
             option_pk_fields = filter_by_option_descriptor(pb_fields, 'pk')
+
+            options = pb_type.DESCRIPTOR.GetOptions()
+            b_ustruct = get_option_value(options, 'b_ustruct')
+
+            if b_ustruct == True:
+                # ** 生成USTRUCT包装
+                struct_wrapper = {
+                    'name': message_name,
+                    'pb_fields': pb_fields,
+                    'option_uasset_fields': option_uasset_fields,
+                    'option_pk_fields': option_pk_fields,
+                    'ustruct_specifiers': get_option_value(options, 'ustruct'),
+                }
+                structs_wrapper.append(struct_wrapper)
+            # ** 生成UCLASS包装
             class_wrapper = {
-                'classname': message_name,
+                'name': message_name,
                 'pb_fields': pb_fields,
                 'option_uasset_fields': option_uasset_fields,
                 'option_pk_fields': option_pk_fields,
+                'uclass_specifiers': get_option_value(options, 'uclass'),
+                'b_ustruct': b_ustruct
             }
             classes_wrapper.append(class_wrapper)
 
         enums_wrapper = []
         for enum_name in module.DESCRIPTOR.enum_types_by_name:
-            uenum_specifiers = ''
             pb_enum = getattr(module, enum_name)
             options = pb_enum.DESCRIPTOR.GetOptions()
-            for option_field_descriptor, option_field_value in options.ListFields():
-                if option_field_descriptor.name == 'uenum':
-                    uenum_specifiers = option_field_value
             enum_wrapper = {
                 'enumname': enum_name,
                 'pb_enum_values': pb_enum.DESCRIPTOR.values,
-                'uenum_specifiers': uenum_specifiers
+                'uenum_specifiers': get_option_value(options, 'uenum')
             }
             enums_wrapper.append(enum_wrapper)
 
@@ -291,12 +354,12 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
         # ** pb_imports生成文件中依赖的其他生成文件，依据pb import依赖关系
         cpp_wrapper_content_by_modules[loaded_module] = {
             'classes_wrapper': classes_wrapper,
+            'structs_wrapper': structs_wrapper,
             'enums_wrapper': enums_wrapper,
             'excels_wrapper': [],
             'pb_imports': pb_imports,
         }
 
-    
     for excel_wrapper in cpp_excel_wrapper:
         pb_type, loaded_module = pb_helper.get_type_with_module(excel_wrapper)
         if pb_type is None:
@@ -307,7 +370,7 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
         # ** 找到Excel对应的class包装，直接从中获取Excel包装需要的数据
         excel_class_wrapper = None
         for class_wrapper in classes_wrapper:
-            if class_wrapper['classname'] == excel_wrapper:
+            if class_wrapper['name'] == excel_wrapper:
                 excel_class_wrapper = class_wrapper
                 break
         excels_wrapper = cpp_wrapper_content['excels_wrapper']
@@ -315,6 +378,7 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
             'excelname': excel_wrapper,
             'pb_fields': excel_class_wrapper['pb_fields'],
             'option_pk_fields': excel_class_wrapper['option_pk_fields'],
+            'b_ustruct': excel_class_wrapper['b_ustruct'],
         }
         excels_wrapper.append(excel_wrapper)
 
@@ -322,29 +386,7 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
-    all_class_wrapper = []
-    all_excel_wrapper = []
-    for loaded_module in cpp_wrapper_content_by_modules:
-        cpp_wrapper_content = cpp_wrapper_content_by_modules[loaded_module]
-        all_class_wrapper.extend(cpp_wrapper_content['classes_wrapper'])
-        all_excel_wrapper.extend(cpp_wrapper_content['excels_wrapper'])
-
-    # 处理友元类
-    for class_wrapper in all_class_wrapper:
-        class_friend_classes = [] if 'class_friend_classes' not in class_wrapper else class_wrapper['class_friend_classes']
-        # 自身Message的Excel包装能够使用自身的Load
-        for excel_wrapper in all_excel_wrapper:
-            if excel_wrapper["excelname"] == class_wrapper["classname"]:
-                class_friend_classes.append(f'{excel_wrapper["excelname"]}Excel')
-        # 自身能使用子Message中的Load
-        for pb_field in class_wrapper['pb_fields']:
-            if pb_field.message_type is not None:
-                for inner_class_wrapper in all_class_wrapper:
-                    if inner_class_wrapper['classname'] == pb_field.message_type.name:
-                        inner_class_friend_classes = [] if 'class_friend_classes' not in inner_class_wrapper else inner_class_wrapper['class_friend_classes']
-                        inner_class_friend_classes.append(f'{class_wrapper["classname"]}Wrap')
-                        inner_class_wrapper['class_friend_classes'] = inner_class_friend_classes
-        class_wrapper['class_friend_classes'] = class_friend_classes
+    handle_friend_class(cpp_wrapper_content_by_modules)
 
     for loaded_module in cpp_wrapper_content_by_modules:
         cpp_wrapper_content = cpp_wrapper_content_by_modules[loaded_module]
@@ -356,16 +398,18 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
         if os.path.exists(file_path):
             os.remove(file_path)
 
-
         cpp_wrapper_content = Templite(cpp_wrapper_template).render(
             classes_wrapper=cpp_wrapper_content['classes_wrapper'],
+            structs_wrapper=cpp_wrapper_content['structs_wrapper'],
             enums_wrapper=cpp_wrapper_content['enums_wrapper'],
             excels_wrapper=cpp_wrapper_content['excels_wrapper'],
             pb_imports=cpp_wrapper_content['pb_imports'],
             module_name=module_name,
             file_basename=file_basename,
             pb_type_to_ue_type_map=pb_type_to_ue_type_map,
-            FieldDescriptor=pb_helper.FieldDescriptor)
+            FieldDescriptor=pb_helper.FieldDescriptor,
+            get_option_value=get_option_value
+        )
 
         with open(file_path, 'w') as f:
             f.write(cpp_wrapper_content)
@@ -423,11 +467,11 @@ def generate_excel_bin():
             cpp_excel_wrapper.append(basename)
 
     return cpp_excel_wrapper
-    
+
 def generate_all():
     """
     生成所有pb相关内容，包括excel对应二进制pb数据、message对应cpp包装等
-    
+
     """
     preference = load_preference()
 

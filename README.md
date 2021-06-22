@@ -7,7 +7,7 @@ Read excel data to UCLASS by Protobuf Message definition
 ## Example
 
 ```cpp
-UPBLoaderSubsystem * PBLoader = GetGameInstance()->GetSubsystem<UPBLoaderSubsystem>();
+UPBLoaderSubsystem * PBLoader = GEngine->GetEngineSubsystem<UPBLoaderSubsystem>();
 UMonsterConfigExcel * Excel = PBLoader->LoadExcel<UMonsterConfigExcel>();
 if (Excel)
 {

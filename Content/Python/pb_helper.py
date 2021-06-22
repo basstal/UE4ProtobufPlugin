@@ -3,7 +3,9 @@ import os
 import importlib
 
 import utility as u
-import unreal
+
+from unreal_import_switch import unreal
+
 
 from google.protobuf.descriptor import FieldDescriptor
 
