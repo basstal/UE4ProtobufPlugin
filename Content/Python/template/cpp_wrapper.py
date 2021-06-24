@@ -211,8 +211,6 @@ def transfor_pb_value_to_ue_value(pb_field, text_format, class_wrapper):
     return f'{common_format};{chr(10)}{text_format}'
 }$
 
-namespace ProtoGen
-{
 ${#-----------------------------------------------------}$
 ${#-----处理 enums_wrapper 生成所有 Enum 的包装-----}$
 ${#-----------------------------------------------------}$
@@ -394,6 +392,4 @@ ${:end-if}$
     
 };
 ${:end-for}$
-
-} // namespace ProtoGen
 '''
