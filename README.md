@@ -11,24 +11,24 @@ UPBLoaderSubsystem * PBLoader = GEngine->GetEngineSubsystem<UPBLoaderSubsystem>(
 UMonsterConfigExcel * Excel = PBLoader->LoadExcel<UMonsterConfigExcel>();
 if (Excel)
 {
-    const UMonsterConfigWrap * MonsterConfigRow = Excel->Get(210705);
+    const FMonsterConfig * MonsterConfigRow = Excel->Get(210705);
     if (MonsterConfigRow)
     {
-        UE_LOG(LogBlockBreaker, Log, TEXT("MonsterConfigRow->aiRes : %s"), *MonsterConfigRow->aiRes);
+        UE_LOG(LogTemp, Log, TEXT("MonsterConfigRow->aiRes : %s"), *(MonsterConfigRow->aiRes));
     }
-    for(const UMonsterConfigWrap * ExcelRow : Excel->Rows)
+    for(auto ExcelRow : Excel->Rows)
     {
-        UE_LOG(LogBlockBreaker, Log, TEXT("Row->Data.id() : %d"), ExcelRow->id);
+        UE_LOG(LogTemp, Log, TEXT("ExcelRow.id : %d"), ExcelRow.id);
     }
 }
-const UHeroUpgradeExcel * HeroUpgradeExcel = PBLoader->LoadExcel<UHeroUpgradeExcel>();
+UHeroUpgradeExcel * HeroUpgradeExcel = PBLoader->LoadExcel<UHeroUpgradeExcel>();
 if (HeroUpgradeExcel)
 {
     for (auto Row : HeroUpgradeExcel->Rows)
     {
         for (auto Attr : Row->attr)
         {
-            UE_LOG(LogBlockBreaker, Log, TEXT("Attr->value : %f"), Attr->value);
+            UE_LOG(LogTemp, Log, TEXT("Attr->value : %f"), Attr->value);
         }
     }
 }
