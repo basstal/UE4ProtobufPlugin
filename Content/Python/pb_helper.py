@@ -1,6 +1,8 @@
 import sys
 import os
 import importlib
+import configparser
+import re
 
 import utility as u
 
@@ -73,3 +75,52 @@ class pb_helper:
                 continue
         
         return pb_type, result_module
+
+    @staticmethod
+    def load_proto_gen_preference():
+        """
+        载入ProtoGen配置文件
+        """
+        project_plugins_dir = unreal.Paths.project_plugins_dir()
+
+        preferences_file_path = os.path.join(project_plugins_dir, "Protobuf/Config/ProtoGen.ini")
+        if not os.path.exists(preferences_file_path):
+            unreal.log_error(f'Config file don\'t exist at path {preferences_file_path}')
+            return
+
+        config = configparser.ConfigParser()
+        config.read(preferences_file_path)
+        if '/Script/Protobuf.ProtoGen' in config:
+            return config['/Script/Protobuf.ProtoGen']
+
+    @staticmethod
+    def load_protobuf_preference():
+        """
+        载入Protobuf配置文件
+        """
+        project_config_dir = unreal.Paths.project_config_dir()
+
+        preferences_file_path = os.path.join(project_config_dir, "DefaultProtobuf.ini")
+        if not os.path.exists(preferences_file_path):
+            unreal.log_error(f'Config file don\'t exist at path {preferences_file_path}')
+            return
+
+        config = configparser.ConfigParser()
+        config.read(preferences_file_path)
+        if '/Script/Protobuf.ProtobufSetting' in config:
+            return config['/Script/Protobuf.ProtobufSetting']
+            
+    @staticmethod
+    def get_path_from_preference(preference, path_key):
+        """
+        从配置中获取指定路径，并转化为UE工程路径
+
+        @preference (dict())
+        配置
+        @path_key (str)
+        获取对应字段名
+        """
+        preference_path = None if path_key not in preference else preference[path_key]
+        pattern = re.compile(r'\(Path="(.*)"\)')
+        match_result = pattern.match(preference_path)
+        return os.path.abspath(os.path.normpath(os.path.join(unreal.Paths.project_dir(), match_result.group(1))))

@@ -1,10 +1,9 @@
-// NOTE:这个文件不会生成任何对应的cpp文件，因此不要在这里添加非Options的Message、Enum等
+// NOTE:这个文件不会生成任何对应的wrapper文件，因此不要在这里添加非Options的Message、Enum等
 syntax = "proto3";
 import "google/protobuf/descriptor.proto";
 
 extend google.protobuf.MessageOptions {
-    bool   b_ustruct = 700001;   // 生成struct，否则默认生成class包装
-    string ustruct   = 700002;   // 填在USTRUCT()括号中的说明符，供UE类型反射使用
+    string ustruct   = 700002;   // 填在USTRUCT()括号中的说明符，供UE类型反射使用；如果使用该说明符，则生成的包装为USTRUCT，否则默认生成UCLASS
     string uclass    = 700003;   // 填在UCLASS()括号中的说明符，供UE类型反射使用
     // string urls             = 51001;
     // string view             = 51002;

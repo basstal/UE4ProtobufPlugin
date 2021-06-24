@@ -16,9 +16,9 @@ def reload_modules():
     # unreal.log(type(sys.modules))
     pending_modules = []
     for module_name  in sys.modules:
-        if protobuf.get_options_ext_name() in module_name:
-            continue
         if module_name.endswith('_pb2'):
+            if module_name.replace('_pb2', '') in protobuf.exclude_proto_names():
+                continue
             pending_modules.append(module_name)
 
     for module_name in pending_modules:

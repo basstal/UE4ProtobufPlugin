@@ -1,8 +1,6 @@
 import time
 
 import sys
-import re
-import configparser
 import os
 import shutil
 import traceback
@@ -15,8 +13,11 @@ from templite import Templite
 from unreal_import_switch import unreal
 
 
-def get_options_ext_name():
-    return 'options_ext'
+def exclude_proto_names():
+    return [
+        'options_ext',
+        'excel_basic',
+    ]
 
 def get_pb_field_ref(excel_field_name):
     """
@@ -232,7 +233,7 @@ def filter_by_option_descriptor(pb_fields, option_field_descriptor_name):
     return result_fields
 
 
-def get_option_value(options, target_option):
+def get_option_value(options, target_option, default=''):
     """
     从options结构中获得target_option的值，如果找不到返回空字符串
 
@@ -241,11 +242,14 @@ def get_option_value(options, target_option):
 
     @target_option (str)
       option名称，参考options_ext.proto定义
+    
+    @default (str)
+      找不到时需要返回的默认值
     """
     for option_field_descriptor, option_field_value in options.ListFields():
         if option_field_descriptor.name == target_option:
             return option_field_value
-    return ''
+    return default
 
 
 def handle_friend_class(cpp_wrapper_content_by_modules):
@@ -275,7 +279,7 @@ def handle_friend_class(cpp_wrapper_content_by_modules):
                 for inner_class_wrapper in all_class_wrapper:
                     if inner_class_wrapper['name'] == pb_field.message_type.name:
                         inner_class_friend_classes = [] if 'class_friend_classes' not in inner_class_wrapper else inner_class_wrapper['class_friend_classes']
-                        inner_class_friend_classes.append(f'{class_wrapper["name"]}Wrap')
+                        inner_class_friend_classes.append(f'{class_wrapper["name"]}{class_wrapper["typename_postfix"]}')
                         inner_class_wrapper['class_friend_classes'] = inner_class_friend_classes
         class_wrapper['class_friend_classes'] = class_friend_classes
 
@@ -291,17 +295,24 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
     """
     cpp_wrapper_content_by_modules = {}
     from pb_helper import pb_helper
+    preference = pb_helper.load_proto_gen_preference()
+    uclass_as_default = preference["uclass_as_default"] == 'True'
+    struct_typename_postfix = preference["struct_typename_postfix"]
+    class_typename_postfix = preference["class_typename_postfix"]
+    excel_typename_postfix = preference["excel_typename_postfix"]
     for loaded_module in pb_helper.loaded_modules:
         module = sys.modules[loaded_module]
         # ** NOTE:仅windows生效
-        options_ext_name = get_options_ext_name()
-        if 'google\\protobuf' in module.__file__ or options_ext_name in module.__file__:
+        if 'google\\protobuf' in module.__file__:
+            continue
+        if loaded_module.replace('_pb2', '') in exclude_proto_names():
             continue
         pb_imports = []
         for dependency in module.DESCRIPTOR.dependencies:
-            if options_ext_name in dependency.name:
+            shortname = dependency.name.replace('.proto', '')
+            if shortname in exclude_proto_names():
                 continue
-            pb_imports.append(dependency.name.replace('.proto', ''))
+            pb_imports.append(shortname)
 
         # ** NOTE:根据模块将类写入对应wrapper中
         classes_wrapper = []
@@ -313,27 +324,34 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
             option_pk_fields = filter_by_option_descriptor(pb_fields, 'pk')
 
             options = pb_type.DESCRIPTOR.GetOptions()
-            b_ustruct = get_option_value(options, 'b_ustruct')
+            ustruct_specifiers = get_option_value(options, 'ustruct', False)
+            uclass_specifiers = get_option_value(options, 'uclass')
 
-            if b_ustruct == True:
-                # ** 生成USTRUCT包装
-                struct_wrapper = {
-                    'name': message_name,
-                    'pb_fields': pb_fields,
-                    'option_uasset_fields': option_uasset_fields,
-                    'option_pk_fields': option_pk_fields,
-                    'ustruct_specifiers': get_option_value(options, 'ustruct'),
-                }
-                structs_wrapper.append(struct_wrapper)
+            if not uclass_as_default and ustruct_specifiers == False:
+                ustruct_specifiers = ''
+            # ** 生成USTRUCT包装
+            struct_wrapper = {
+                'name': message_name,
+                'pb_fields': pb_fields,
+                'option_uasset_fields': option_uasset_fields,
+                'option_pk_fields': option_pk_fields,
+                'ustruct_specifiers': ustruct_specifiers if ustruct_specifiers != False else '',
+                'typename_postfix' : struct_typename_postfix,
+            }
             # ** 生成UCLASS包装
             class_wrapper = {
                 'name': message_name,
                 'pb_fields': pb_fields,
                 'option_uasset_fields': option_uasset_fields,
                 'option_pk_fields': option_pk_fields,
-                'uclass_specifiers': get_option_value(options, 'uclass'),
-                'b_ustruct': b_ustruct
+                'uclass_specifiers': uclass_specifiers,
+                'is_ustruct': ustruct_specifiers != False,
+                'typename_postfix' : class_typename_postfix,
+                'struct_wrapper' : struct_wrapper
             }
+            if not uclass_as_default or ustruct_specifiers != False:
+                structs_wrapper.append(struct_wrapper)
+
             classes_wrapper.append(class_wrapper)
 
         enums_wrapper = []
@@ -378,7 +396,9 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
             'excelname': excel_wrapper,
             'pb_fields': excel_class_wrapper['pb_fields'],
             'option_pk_fields': excel_class_wrapper['option_pk_fields'],
-            'b_ustruct': excel_class_wrapper['b_ustruct'],
+            'typename_postfix': excel_typename_postfix,
+            'class_wrapper' : excel_class_wrapper,
+            'is_ustruct': excel_class_wrapper['is_ustruct'],
         }
         excels_wrapper.append(excel_wrapper)
 
@@ -408,43 +428,13 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
             file_basename=file_basename,
             pb_type_to_ue_type_map=pb_type_to_ue_type_map,
             FieldDescriptor=pb_helper.FieldDescriptor,
-            get_option_value=get_option_value
+            get_option_value=get_option_value,
+            uclass_as_default=uclass_as_default
         )
 
         with open(file_path, 'w') as f:
             f.write(cpp_wrapper_content)
 
-
-def load_preference():
-    """
-    载入json配置文件
-    """
-    project_config_dir = unreal.Paths.project_config_dir()
-
-    preferences_file_path = os.path.join(project_config_dir, "DefaultProtobuf.ini")
-    if not os.path.exists(preferences_file_path):
-        unreal.log_error(f'Config file don\'t exist at path {preferences_file_path}')
-        return
-
-    config = configparser.ConfigParser()
-    config.read(preferences_file_path)
-    if '/Script/Protobuf.ProtobufSetting' in config:
-        return config['/Script/Protobuf.ProtobufSetting']
-
-
-def get_path_from_preference(preference, path_key):
-    """
-    从配置中获取指定路径，并转化为UE工程路径
-
-    @preference (dict())
-      配置
-    @path_key (str)
-      获取对应字段名
-    """
-    preference_path = None if path_key not in preference else preference[path_key]
-    pattern = re.compile(r'\(Path="(.*)"\)')
-    match_result = pattern.match(preference_path)
-    return os.path.abspath(os.path.normpath(os.path.join(unreal.Paths.project_dir(), match_result.group(1))))
 
 def generate_excel_bin():
     """
@@ -452,10 +442,12 @@ def generate_excel_bin():
     返回成功生成二进制pb数据对应的excel名称
 
     """
-    preference = load_preference()
+    from pb_helper import pb_helper
 
-    excel_path = get_path_from_preference(preference, 'excel_root_path')
-    binaries_out = get_path_from_preference(preference, 'binaries_out')
+    preference = pb_helper.load_protobuf_preference()
+
+    excel_path = pb_helper.get_path_from_preference(preference, 'excel_root_path')
+    binaries_out = pb_helper.get_path_from_preference(preference, 'binaries_out')
 
     excel_files = u.get_files(excel_path, ["*.xlsx", "*.xlsm"], ["*~$*.xlsx"], recursive=False)
     cpp_excel_wrapper = []
@@ -473,13 +465,14 @@ def generate_all():
     生成所有pb相关内容，包括excel对应二进制pb数据、message对应cpp包装等
 
     """
-    preference = load_preference()
-
-    proto_path = get_path_from_preference(preference, 'proto_root_path')
-    cpp_proto_out = get_path_from_preference(preference, 'cpp_proto_out')
-    ue_cpp_wrapper_out = get_path_from_preference(preference, 'ue_cpp_wrapper_out')
-
     from pb_helper import pb_helper
+
+    preference = pb_helper.load_protobuf_preference()
+
+    proto_path = pb_helper.get_path_from_preference(preference, 'proto_root_path')
+    cpp_proto_out = pb_helper.get_path_from_preference(preference, 'cpp_proto_out')
+    ue_cpp_wrapper_out = pb_helper.get_path_from_preference(preference, 'ue_cpp_wrapper_out')
+
     python_pb_out = pb_helper.get_pb_path()
     unreal.log("python_pbdef output path : {}".format(python_pb_out))
     generate_pbdef(proto_path, python_pb_out, 'python')

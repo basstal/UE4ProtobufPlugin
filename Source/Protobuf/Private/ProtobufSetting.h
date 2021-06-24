@@ -13,7 +13,6 @@ class UProtobufSetting : public UObject
 	GENERATED_BODY()
 	
 public:
-	// virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
@@ -44,11 +43,9 @@ public:
 		SectionName = TEXT("Protobuf");
 	}
 #if WITH_EDITOR
-
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
-	/** Custom editor for python file */
 	UPROPERTY(config, EditAnywhere, Category="Setting", meta=(DisplayName="Excel执行文件路径"))
 	FString ExcelExec;
 };
