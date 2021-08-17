@@ -3,8 +3,8 @@ syntax = "proto3";
 import "google/protobuf/descriptor.proto";
 
 extend google.protobuf.MessageOptions {
-    string ustruct   = 700002;   // 填在USTRUCT()括号中的说明符，供UE类型反射使用；如果使用该说明符，则生成的包装为USTRUCT，否则默认生成UCLASS
-    string uclass    = 700003;   // 填在UCLASS()括号中的说明符，供UE类型反射使用
+    string ustruct = 700002;   // 填在USTRUCT()括号中的说明符，供UE类型反射使用；如果使用该说明符，则生成的包装为USTRUCT，否则默认生成UCLASS
+    string uclass  = 700003;   // 填在UCLASS()括号中的说明符，供UE类型反射使用
     // string urls             = 51001;
     // string view             = 51002;
     // string comment          = 51003;
@@ -22,8 +22,9 @@ extend google.protobuf.MessageOptions {
 }
 
 extend google.protobuf.FieldOptions {
-    bool pk     = 40001;
-    bool uasset = 700001;   // 是ue资源索引
+    bool pk              = 40001;
+    bool softclasspath  = 700001;   // ue资源索引 class
+    bool softobjectpath = 700002;   // ue资源索引 object
     // string         field_tooltip  = 40002;
     // string         fc             = 61002;
     // bool           hide_desc      = 610003;

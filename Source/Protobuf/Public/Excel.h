@@ -9,7 +9,7 @@
 /**
  * 抽象一个Excel表
  */
-UCLASS()
+UCLASS(BlueprintType)
 class PROTOBUF_API UExcel : public UObject
 {
 	GENERATED_BODY()

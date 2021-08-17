@@ -15,8 +15,8 @@ class PROTOBUF_API UPBLoaderSubsystem : public UEngineSubsystem
 public:
 	template<typename T>
 	T * LoadExcel();
-	UFUNCTION()
-	UExcel * LoadExcelImpl(UClass * Wrapper);
+	UFUNCTION(BlueprintCallable)
+	UExcel * LoadExcelImpl(TSubclassOf<UExcel> Wrapper);
 
 protected:
 	UPROPERTY()

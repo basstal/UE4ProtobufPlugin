@@ -210,7 +210,24 @@ def transfor_pb_value_to_ue_value(pb_field, text_format, class_wrapper):
     # 最后一行的格式是统一的
     return f'{common_format};{chr(10)}{text_format}'
 }$
-
+${
+def get_pb_field_ue_type(pb_field, struct_wrapper):
+    """
+    对于每个字段，将pb类型转换为对应的ue类型，其中特殊处理FSoftClassPath、FSoftObjectPath等标记
+    """
+    if pb_field in struct_wrapper['option_FSoftClassPath_fields']:
+        #处理是否为FSoftClassPath
+        return 'FSoftClassPath'
+    elif pb_field in struct_wrapper['option_FSoftObjectPath_fields']:
+        #处理是否为FSoftObjectPath
+        return 'FSoftObjectPath'
+    else:
+        typename_postfix = struct_wrapper["typename_postfix"]
+        option_pk_fields = struct_wrapper["option_pk_fields"]
+        ue_type = transfor_pb_type_to_ue_type(pb_field, typename_postfix)
+        ue_type = ue_type if not pb_field in option_pk_fields else transfor_pk_type(ue_type)
+        return str(wrap_repeated_field(pb_field, ue_type))
+}$
 ${#-----------------------------------------------------}$
 ${#-----处理 enums_wrapper 生成所有 Enum 的包装-----}$
 ${#-----------------------------------------------------}$
@@ -238,15 +255,10 @@ struct F${struct_wrapper["name"]}$${typename_postfix}$
     GENERATED_BODY()
 public:
     ${for pb_field in struct_wrapper['pb_fields']:}$
-    UPROPERTY()
-    ${#处理是否为uasset}$
-    ${if pb_field in struct_wrapper['option_uasset_fields']:}$
-    FSoftObjectPath ${pb_field.name}$;
-    ${:else:}$
-    ${ue_type = transfor_pb_type_to_ue_type(pb_field, typename_postfix)}$
-    ${ue_type = ue_type if not pb_field in option_pk_fields else transfor_pk_type(ue_type)}$
-    ${write(wrap_repeated_field(pb_field, ue_type))}$ ${pb_field.name}$;
-    ${:end-if}$
+    ${#默认BlueprintReadOnly, 供蓝图使用}$
+    ${#TODO:过滤不支持的类型}$
+    UPROPERTY(BlueprintReadOnly)
+    ${write(get_pb_field_ue_type(pb_field, struct_wrapper))}$ ${pb_field.name}$;
     ${:end-for}$
 };
 ${:end-for}$
@@ -274,14 +286,7 @@ public:
     ${:else:}$
         ${#uclass}$
         ${for pb_field in class_wrapper['pb_fields']:}$
-        ${#处理是否为uasset}$
-        ${if pb_field in class_wrapper['option_uasset_fields']:}$
-    FSoftObjectPath ${pb_field.name}$;
-        ${:else:}$
-        ${ue_type = transfor_pb_type_to_ue_type(pb_field, class_wrapper["typename_postfix"])}$
-        ${ue_type = ue_type if not pb_field in option_pk_fields else transfor_pk_type(ue_type)}$
-    ${write(wrap_repeated_field(pb_field, ue_type))}$ ${pb_field.name}$;
-        ${:end-if}$
+    ${write(get_pb_field_ue_type(pb_field, class_wrapper))}$ ${pb_field.name}$;
         ${:end-for}$
     ${:end-if}$
 protected:
@@ -297,9 +302,11 @@ protected:
         if (auto * PBData = reinterpret_cast<const ${class_wrapper["name"]}$*>(Message))
         {
             ${for pb_field in class_wrapper['pb_fields']:}$
-            ${#处理是否为uasset}$
-            ${if pb_field in class_wrapper['option_uasset_fields']:}$
+            ${ue_type = get_pb_field_ue_type(pb_field, class_wrapper)}$
+            ${if ue_type == 'FSoftObjectPath':}$
             ${write(handle_ustruct(pb_field, class_wrapper))}$ = FSoftObjectPath(PBData->${write(pb_field.name.lower())}$().c_str());
+            ${:elif ue_type == 'FSoftClassPath':}$
+            ${write(handle_ustruct(pb_field, class_wrapper))}$ = FSoftClassPath(PBData->${write(pb_field.name.lower())}$().c_str());
             ${:else:}$
             ${write(transfor_pb_value_to_ue_value(pb_field, '\t'*3, class_wrapper))}$
             ${:end-if}$
@@ -326,7 +333,8 @@ class U${excel_wrapper["excelname"]}$${excel_wrapper["typename_postfix"]}$ : pub
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY()
+    ${#默认BlueprintReadOnly, 供蓝图使用}$
+	UPROPERTY(BlueprintReadOnly)
 	TArray<${write(f'const {row_classname} *' if not is_ustruct else f'{row_structname}')}$> Rows;
 protected:
 	virtual void Load(TArray<uint8>& Bytes) override

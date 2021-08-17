@@ -5,7 +5,7 @@
 #include "ProtobufSetting.h"
 #include "Misc/FileHelper.h"
 
-UExcel* UPBLoaderSubsystem::LoadExcelImpl(UClass* Wrapper)
+UExcel* UPBLoaderSubsystem::LoadExcelImpl(TSubclassOf<UExcel> Wrapper)
 {
 	FString ExcelName(Wrapper->GetName().LeftChop(5));
 	if (LoadedExcels.Contains(ExcelName))

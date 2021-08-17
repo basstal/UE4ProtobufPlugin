@@ -43,7 +43,7 @@ def get_pb_field_ref(excel_field_name):
 
 def validate(excel_instances):
     # ** TODO:重复主键检查等
-    return True
+    return excel_instances != None
 
 
 def output_binaries(excel_instances, output_path, type_name):
@@ -63,7 +63,7 @@ def output_binaries(excel_instances, output_path, type_name):
     from pb_helper import pb_helper
     excel_wrap_type, _ = pb_helper.get_type_with_module('Excel')
     if excel_wrap_type is None:
-        unreal.log_error('wrap type "{0}" not found . failed to output excel'.format(excel_wrap_type))
+        unreal.log_error('wrap type "{0}" not found. failed to output excel'.format(excel_wrap_type))
         sys.exit(-1)
     excel_wrap = excel_wrap_type()
     setattr(excel_wrap, 'excelName', type_name)
@@ -93,8 +93,8 @@ def excel_binarization(excel, type_name, verbose=True):
     pb_type, _ = pb_helper.get_type_with_module(type_name)
     result = []
     if pb_type is None:
-        unreal.log_error('pb type "{0}" not found . failed to binarization excel "{1}"'.format(type_name, excel))
-        sys.exit(-1)
+        unreal.log_error('pb type "{0}" not found. failed to binarization excel "{1}"'.format(type_name, excel))
+        return
 
     workbook = openpyxl.load_workbook(excel)
     worksheet = workbook.worksheets[0]
@@ -320,7 +320,9 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
         for message_name in module.DESCRIPTOR.message_types_by_name:
             pb_type = getattr(module, message_name)
             pb_fields = pb_type.DESCRIPTOR.fields
-            option_uasset_fields = filter_by_option_descriptor(pb_fields, 'uasset')
+            option_FSoftClassPath_fields = filter_by_option_descriptor(pb_fields, 'softclasspath')
+            option_FSoftObjectPath_fields = filter_by_option_descriptor(pb_fields, 'softobjectpath')
+                
             option_pk_fields = filter_by_option_descriptor(pb_fields, 'pk')
 
             options = pb_type.DESCRIPTOR.GetOptions()
@@ -333,16 +335,24 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
             struct_wrapper = {
                 'name': message_name,
                 'pb_fields': pb_fields,
-                'option_uasset_fields': option_uasset_fields,
+                'option_FSoftClassPath_fields': option_FSoftClassPath_fields,
+                'option_FSoftObjectPath_fields': option_FSoftObjectPath_fields,
                 'option_pk_fields': option_pk_fields,
                 'ustruct_specifiers': ustruct_specifiers if ustruct_specifiers != False else '',
                 'typename_postfix' : struct_typename_postfix,
             }
+            #BlueprintType default, 为了让Excel的Rows能够BlueprintReadOnly
+            if 'BlueprintType' not in struct_wrapper['ustruct_specifiers']:
+                if struct_wrapper['ustruct_specifiers'] == '':
+                    struct_wrapper['ustruct_specifiers'] = 'BlueprintType'
+                else:
+                    struct_wrapper['ustruct_specifiers'] += ', BlueprintType'
             # ** 生成UCLASS包装
             class_wrapper = {
                 'name': message_name,
                 'pb_fields': pb_fields,
-                'option_uasset_fields': option_uasset_fields,
+                'option_FSoftClassPath_fields': option_FSoftClassPath_fields,
+                'option_FSoftObjectPath_fields': option_FSoftObjectPath_fields,
                 'option_pk_fields': option_pk_fields,
                 'uclass_specifiers': uclass_specifiers,
                 'is_ustruct': ustruct_specifiers != False,
