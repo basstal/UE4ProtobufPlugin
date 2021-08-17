@@ -77,23 +77,6 @@ class pb_helper:
         return pb_type, result_module
 
     @staticmethod
-    def load_proto_gen_preference():
-        """
-        载入ProtoGen配置文件
-        """
-        project_plugins_dir = unreal.Paths.project_plugins_dir()
-
-        preferences_file_path = os.path.join(project_plugins_dir, "Protobuf/Config/ProtoGen.ini")
-        if not os.path.exists(preferences_file_path):
-            unreal.log_error(f'Config file don\'t exist at path {preferences_file_path}')
-            return
-
-        config = configparser.ConfigParser()
-        config.read(preferences_file_path)
-        if '/Script/Protobuf.ProtoGen' in config:
-            return config['/Script/Protobuf.ProtoGen']
-
-    @staticmethod
     def load_protobuf_preference():
         """
         载入Protobuf配置文件

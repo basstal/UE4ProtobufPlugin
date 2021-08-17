@@ -29,8 +29,7 @@ void FProtobufModule::StartupModule()
 
 void FProtobufModule::ShutdownModule()
 {
-	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
-	// we call this function before unloading the module.
+	
 }
 
 void FProtobufModule::RegisterExcelFileType()
@@ -98,12 +97,6 @@ void FProtobufModule::RegisterExcelFileType()
 
 			return false;
 		};
-		auto ExcelItemPreview = [this](const FName InFilePath, const FString& InFilename)
-		{
-			// ExecPythonCommand(*InFilename);
-			return true;
-		};
-
 		auto ExcelItemEdit = [this](const FName InFilePath, const FString& InFilename)
 		{
 			FString EditorPath = GetDefault<UProtobufUserSetting>()->ExcelExec;
@@ -131,11 +124,9 @@ void FProtobufModule::RegisterExcelFileType()
 		ExcelFileActions.TypeDisplayName = LOCTEXT("ExcelTypeName", "Excel");
 		ExcelFileActions.TypeShortDescription = LOCTEXT("ExcelTypeShortDescription", "Excel");
 		ExcelFileActions.TypeFullDescription = LOCTEXT("ExcelTypeFullDescription", "data table created by Microsoft Office Excel");
-		// ExcelFileActions.DefaultNewFileName = TEXT("new_excel");
 		ExcelFileActions.TypeColor = FColor::Green;
 		ExcelFileActions.PassesFilter.BindLambda(ExcelItemPassesFilter, true);
 		ExcelFileActions.GetAttribute.BindLambda(GetExcelItemAttribute);
-		// ExcelFileActions.Preview.BindLambda(ExcelItemPreview);
 		ExcelFileActions.CanEdit.BindLambda(ExcelItemCanEdit);
 		ExcelFileActions.Edit.BindLambda(ExcelItemEdit);
 		ExcelFileActions.CanCreate.BindLambda([this](const FName /*InDestFolderPath*/, const FString& /*InDestFolder*/, FText* /*OutErrorMsg*/){return false;});
@@ -151,8 +142,8 @@ void FProtobufModule::RegisterExcelFileType()
 	{
 		const FString ExcelPath = FPaths::Combine(ProjectDir, ExcelDirectoryPath.Path);
 		const FString ExcelPackagePath = FPackageName::FilenameToLongPackageName(ExcelPath);
-		UE_LOG(LogProtobuf, Log, TEXT("ExcelPackagePath : %s"), *ExcelPackagePath);
-		UE_LOG(LogProtobuf, Log, TEXT("ExcelPath : %s"), *ExcelPath);
+		// UE_LOG(LogProtobuf, Log, TEXT("ExcelPackagePath : %s"), *ExcelPackagePath);
+		// UE_LOG(LogProtobuf, Log, TEXT("ExcelPath : %s"), *ExcelPath);
 		ExcelFileDataSource->AddFileMount(*ExcelPackagePath, ExcelPath);
 	}
 
@@ -176,7 +167,7 @@ void FProtobufModule::RegisterSettings() const
 		                                 Settings);
 	}
 
-	// ** 将excel二进制文件目录同步到打包时需要直接pack的目录中
+	// ** 将Excel二进制文件目录同步到打包时需要直接pack的目录中
 	UProjectPackagingSettings* PackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
 	FString AddPath = Settings->binaries_out.Path;
 	if (AddPath.StartsWith(TEXT("Content/")))
@@ -195,7 +186,7 @@ void FProtobufModule::RegisterSettings() const
 	{
 		FDirectoryPath DirectoryPath;
 		DirectoryPath.Path = AddPath;
-		UE_LOG(LogProtobuf, Log, TEXT("DirectoryPath Added : %s"), *DirectoryPath.Path);
+		// UE_LOG(LogProtobuf, Log, TEXT("DirectoryPath Added : %s"), *DirectoryPath.Path);
 		PackagingSettings->DirectoriesToAlwaysStageAsUFS.Add(DirectoryPath);
 		PackagingSettings->UpdateDefaultConfigFile();
 	}

@@ -295,7 +295,7 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
     """
     cpp_wrapper_content_by_modules = {}
     from pb_helper import pb_helper
-    preference = pb_helper.load_proto_gen_preference()
+    preference = pb_helper.load_protobuf_preference()
     uclass_as_default = preference["uclass_as_default"] == 'True'
     struct_typename_postfix = preference["struct_typename_postfix"]
     class_typename_postfix = preference["class_typename_postfix"]

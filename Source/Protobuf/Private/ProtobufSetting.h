@@ -26,7 +26,15 @@ public:
 	FDirectoryPath cpp_proto_out;
 	UPROPERTY(config, EditAnywhere, Category = "Setting|Out", meta=(DisplayName="ue对应的proto包装类在项目中的相对路径"))
     FDirectoryPath ue_cpp_wrapper_out;
-	/** Excel folders path in project */
+
+	UPROPERTY(config, EditAnywhere, Category = "Setting", meta=(DisplayName="生成Excel包装类型名的后缀"))
+	FString excel_typename_postfix;
+	UPROPERTY(config, EditAnywhere, Category = "Setting", meta=(DisplayName="Message生成UE包装类型名的后缀(class)"))
+	FString class_typename_postfix;
+	UPROPERTY(config, EditAnywhere, Category = "Setting", meta=(DisplayName="Message生成UE包装类型名的后缀(struct)"))
+	FString struct_typename_postfix;
+	UPROPERTY(config, EditAnywhere, Category = "Setting", meta=(DisplayName="Message默认生成UCLASS，否则默认生成USTRUCT"))
+	bool uclass_as_default;
 	UPROPERTY(config, EditAnywhere, Category="Setting", meta=(DisplayName="Excel文件夹在项目中的相对路径", ConfigRestartRequired=true))
 	TArray<FDirectoryPath> ExcelPaths;
 };
@@ -46,6 +54,6 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
-	UPROPERTY(config, EditAnywhere, Category="Setting", meta=(DisplayName="Excel执行文件路径"))
+	UPROPERTY(config, EditAnywhere, Category="Setting", meta=(DisplayName="Excel.exe执行程序路径"))
 	FString ExcelExec;
 };

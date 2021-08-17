@@ -1,6 +1,7 @@
 syntax="proto3";
 
-// ** NOTE:该message名称以及有关字段名，已写死在python -> protobuf.py -> output_binaries 方法中
+// ** NOTE:message名称以及有关字段名，已写死在python -> protobuf.py -> output_binaries 方法中
+// 非特殊情况不要更改message Excel的字段内容
 message Excel {
     string         excelName = 1;
     repeated bytes rows      = 2;

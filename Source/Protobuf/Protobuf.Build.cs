@@ -13,7 +13,6 @@ public class Protobuf : ModuleRules
 		string ThirdPartyPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "../../ThirdParty/protobuf"));
 		string IncludePath = Path.Combine(ThirdPartyPath, "include");
 		
-		// ShadowVariableWarningLevel = WarningLevel.Off;
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
 			bEnableUndefinedIdentifierWarnings = false;
@@ -29,19 +28,10 @@ public class Protobuf : ModuleRules
 			Path.Combine(ThirdPartyPath, "lib/libprotobuf.lib")
 		});
 
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-				// ... add other private include paths required here ...
-			}
-		);
-
-
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core",
-				// ... add other public dependencies that you statically link with here ...
 			}
 		);
 
@@ -53,8 +43,6 @@ public class Protobuf : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-				"DeveloperSettings"
-				// ... add private dependencies that you statically link with here ...	
 			}
 		);
 
@@ -65,17 +53,9 @@ public class Protobuf : ModuleRules
 				"UnrealEd",
 				"AssetTools",
 				"ContentBrowserData",
-				"ContentBrowserFileDataSource"
-				
+				"ContentBrowserFileDataSource",
+				"DeveloperSettings"
 			});
 		}
-
-
-		DynamicallyLoadedModuleNames.AddRange(
-			new string[]
-			{
-				// ... add any modules that your module loads dynamically here ...
-			}
-		);
 	}
 }

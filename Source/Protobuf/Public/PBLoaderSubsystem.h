@@ -15,12 +15,20 @@ class PROTOBUF_API UPBLoaderSubsystem : public UEngineSubsystem
 public:
 	template<typename T>
 	T * LoadExcel();
+	/**
+	 * 载入一张表并返回，多次载入只会读取已缓存的内容
+	 */
 	UFUNCTION(BlueprintCallable)
 	UExcel * LoadExcelImpl(TSubclassOf<UExcel> Wrapper);
-
+	/**
+	 * 释放全部的缓存内容
+	 */
+	UFUNCTION(BlueprintCallable)
+	void ReleaseAll();
 protected:
+	void RemovePostfix(FString& PostfixRemovedName);
 	UPROPERTY()
-	TMap<FString, UExcel *> LoadedExcels; 
+	TMap<FName, UExcel *> LoadedExcels; 
 };
 
 
