@@ -1,6 +1,9 @@
 cpp_template = r'''
 #pragma once
 
+${#引用对应的header}$
+#include "${module_name}$${gen_file_postfix}$.h"
+
 #include "Excel.h"
 #include "ExcelRow.h"
 
@@ -18,8 +21,6 @@ ${for pb_import in pb_imports:}$
 #include "${pb_import}$${gen_file_postfix}$.h"
 ${:end-for}$
 
-${#引用对应的header}$
-#include "${module_name}$${gen_file_postfix}$.h"
 
 ${from template.template_helper import *}$
 
@@ -70,7 +71,7 @@ ${pk_fields_count = len(option_pk_fields)}$
 ${is_ustruct = excel_wrapper['is_ustruct']}$
 ${excel_class_name = 'U{0}{1}'.format(excel_wrapper["excelname"], excel_wrapper["typename_postfix"])}$
 
-void ${excel_class_name}$::Load(TArray<uint8>& Bytes);
+void ${excel_class_name}$::Load(TArray<uint8>& Bytes)
 {
     Excel PBExcel;
     PBExcel.ParseFromArray(Bytes.GetData(), Bytes.Num());
