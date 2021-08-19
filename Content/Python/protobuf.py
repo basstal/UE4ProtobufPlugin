@@ -284,22 +284,24 @@ def handle_friend_class(cpp_wrapper_content_by_modules):
         class_wrapper['class_friend_classes'] = class_friend_classes
 
 
-def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
+def generate_cpp_wrapper(output_path, cpp_excel_wrapper, gen_file_postfix):
     """
     生成UE的cpp包装，将excel对应的Message全部转换到UCLASS，这部分cpp代码是靠templite模板生成的
 
     @output_path (str)
-      excel文件的完整路径
+        模板生成的UE包装文件的输出路径
     @cpp_excel_wrapper (str)
-      对应的pb message名称
+        对应的pb message名称
+    @gen_file_postfix (str)
+        生成的文件后缀名
     """
     cpp_wrapper_content_by_modules = {}
     from pb_helper import pb_helper
     preference = pb_helper.load_protobuf_preference()
-    uclass_as_default = preference["uclass_as_default"] == 'True'
-    struct_typename_postfix = preference["struct_typename_postfix"]
-    class_typename_postfix = preference["class_typename_postfix"]
-    excel_typename_postfix = preference["excel_typename_postfix"]
+    uclass_as_default = True if "uclass_as_default" in preference and preference["uclass_as_default"] == 'True' else False
+    struct_typename_postfix = '' if "struct_typename_postfix" not in preference else preference["struct_typename_postfix"]
+    class_typename_postfix = '' if "class_typename_postfix" not in preference else preference["class_typename_postfix"]
+    excel_typename_postfix = '' if "excel_typename_postfix" not in preference else preference["excel_typename_postfix"]
     for loaded_module in pb_helper.loaded_modules:
         module = sys.modules[loaded_module]
         # ** NOTE:仅windows生效
@@ -412,7 +414,8 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
         }
         excels_wrapper.append(excel_wrapper)
 
-    from template.cpp_wrapper import cpp_wrapper_template, pb_type_to_ue_type_map
+    from template.h_template import h_template
+    from template.cpp_template import cpp_template
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
@@ -423,27 +426,41 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper):
         module_name = loaded_module.replace('_pb2', '')
 
         # ** NOTE:对每一个Proto文件中的所有Message生成一个对应的UCLASS包装
-        file_basename = '{}Wrapper'.format(module_name)
-        file_path = os.path.join(output_path, '{}.h'.format(file_basename))
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        file_basename = '{0}{1}'.format(module_name, gen_file_postfix)
 
-        cpp_wrapper_content = Templite(cpp_wrapper_template).render(
-            classes_wrapper=cpp_wrapper_content['classes_wrapper'],
-            structs_wrapper=cpp_wrapper_content['structs_wrapper'],
-            enums_wrapper=cpp_wrapper_content['enums_wrapper'],
-            excels_wrapper=cpp_wrapper_content['excels_wrapper'],
-            pb_imports=cpp_wrapper_content['pb_imports'],
-            module_name=module_name,
-            file_basename=file_basename,
-            pb_type_to_ue_type_map=pb_type_to_ue_type_map,
-            FieldDescriptor=pb_helper.FieldDescriptor,
-            get_option_value=get_option_value,
-            uclass_as_default=uclass_as_default
-        )
+        params = {
+            'classes_wrapper':cpp_wrapper_content['classes_wrapper'],
+            'structs_wrapper':cpp_wrapper_content['structs_wrapper'],
+            'enums_wrapper':cpp_wrapper_content['enums_wrapper'],
+            'excels_wrapper':cpp_wrapper_content['excels_wrapper'],
+            'pb_imports':cpp_wrapper_content['pb_imports'],
+            'module_name':module_name,
+            'file_basename':file_basename,
+            'get_option_value':get_option_value,
+            'uclass_as_default':uclass_as_default,
+            'gen_file_postfix':gen_file_postfix
+        }
+        # ** output header file
+        header_file_path = os.path.join(output_path, '{}.h'.format(file_basename))
+        if os.path.exists(header_file_path):
+            os.remove(header_file_path)
 
-        with open(file_path, 'w') as f:
-            f.write(cpp_wrapper_content)
+        header_content = Templite(h_template).render(**params)
+
+        with open(header_file_path, 'w') as f:
+            f.write(header_content)
+
+
+        # ** output cpp file
+        cpp_file_path = os.path.join(output_path, '{}.cpp'.format(file_basename))
+        if os.path.exists(cpp_file_path):
+            os.remove(cpp_file_path)
+
+        cpp_content = Templite(cpp_template).render(**params)
+
+        with open(cpp_file_path, 'w') as f:
+            f.write(cpp_content)
+        
 
 
 def generate_excel_bin():
@@ -489,4 +506,4 @@ def generate_all():
     generate_pbdef(proto_path, cpp_proto_out, "cpp")
 
     cpp_excel_wrapper = generate_excel_bin()
-    generate_cpp_wrapper(ue_cpp_wrapper_out, cpp_excel_wrapper)
+    generate_cpp_wrapper(ue_cpp_wrapper_out, cpp_excel_wrapper, 'Wrapper')

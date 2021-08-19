@@ -9,25 +9,11 @@ import utility as u
 from unreal_import_switch import unreal
 
 
-from google.protobuf.descriptor import FieldDescriptor
-
-
 class pb_helper:
     """
     记录Python生成的pb模块
     """
     loaded_modules = None
-
-    TYPE_INT = [
-        FieldDescriptor.TYPE_INT32,
-        FieldDescriptor.TYPE_INT64,
-        FieldDescriptor.TYPE_SINT32,
-        FieldDescriptor.TYPE_SINT64,
-        FieldDescriptor.TYPE_UINT32,
-        FieldDescriptor.TYPE_UINT64,
-    ]
-
-    FieldDescriptor = FieldDescriptor
 
     @staticmethod
     def get_pb_path():

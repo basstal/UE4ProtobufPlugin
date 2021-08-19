@@ -4,9 +4,20 @@ import utility as u
 
 from unreal_import_switch import unreal
 
+from google.protobuf.descriptor import FieldDescriptor
+
 
 class pb_shell:
     warn_fields = {}
+
+    TYPE_INT = [
+        FieldDescriptor.TYPE_INT32,
+        FieldDescriptor.TYPE_INT64,
+        FieldDescriptor.TYPE_SINT32,
+        FieldDescriptor.TYPE_SINT64,
+        FieldDescriptor.TYPE_UINT32,
+        FieldDescriptor.TYPE_UINT64,
+    ]
 
     def __init__(self, pb_type):
         self.instance = pb_type()
@@ -19,9 +30,9 @@ class pb_shell:
         resolved_value = None
         target_type = descriptor_field.type
         
-        if target_type is pb_helper.FieldDescriptor.TYPE_STRING or target_type is pb_helper.FieldDescriptor.TYPE_BYTES:
+        if target_type is FieldDescriptor.TYPE_STRING or target_type is FieldDescriptor.TYPE_BYTES:
             resolved_value = str(value)
-        elif target_type is pb_helper.FieldDescriptor.TYPE_ENUM:
+        elif target_type is FieldDescriptor.TYPE_ENUM:
             if type(value) == str:
                 enum_type = descriptor_field.enum_type
                 try:
@@ -41,11 +52,11 @@ class pb_shell:
                     cast_to_float = 0
             else:
                 cast_to_float = float(value)
-            if target_type in pb_helper.TYPE_INT:
+            if target_type in pb_shell.TYPE_INT:
                 resolved_value = int(cast_to_float)
-            elif target_type is pb_helper.FieldDescriptor.TYPE_FLOAT or target_type is pb_helper.FieldDescriptor.TYPE_DOUBLE:
+            elif target_type is FieldDescriptor.TYPE_FLOAT or target_type is FieldDescriptor.TYPE_DOUBLE:
                 resolved_value = cast_to_float
-            elif target_type is pb_helper.FieldDescriptor.TYPE_BOOL:
+            elif target_type is FieldDescriptor.TYPE_BOOL:
                 resolved_value = (int(cast_to_float)) != 0
 
         return resolved_value
@@ -65,7 +76,7 @@ class pb_shell:
         self.valid = True
         descriptor_field = pb_helper.get_descriptor_field(instance, name)
         if descriptor_field is not None:
-            if descriptor_field.label == pb_helper.FieldDescriptor.LABEL_REPEATED:
+            if descriptor_field.label == FieldDescriptor.LABEL_REPEATED:
                 if excel_index is None:
                     unreal.log_warning("descriptor_field : {} need a repeated field assigning !".format(descriptor_field))
                     return
@@ -73,7 +84,7 @@ class pb_shell:
                 repeated_field = getattr(self.instance, name)
                 if repeated_field is None:
                     unreal.log_warning('{} field in {} is None?'.format(name, self.instance))
-                if descriptor_field.type == pb_helper.FieldDescriptor.TYPE_MESSAGE:
+                if descriptor_field.type == FieldDescriptor.TYPE_MESSAGE:
                     if descriptor_field.number in self.exi_to_rpi_by_dscn:
                         reflection = self.exi_to_rpi_by_dscn[descriptor_field.number]
                     else:
@@ -92,7 +103,7 @@ class pb_shell:
                     attr_value_instance = self.resolve_value_by_descriptor(descriptor_field, value)
                     repeated_field.append(attr_value_instance)
             else:
-                if descriptor_field.type == pb_helper.FieldDescriptor.TYPE_MESSAGE:
+                if descriptor_field.type == FieldDescriptor.TYPE_MESSAGE:
                     inner_message_instance = getattr(instance, name)
                     self.write_field_value(pb_field_excel_ref[1:], value, inner_message_instance)
                 else:

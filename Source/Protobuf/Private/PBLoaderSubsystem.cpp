@@ -28,12 +28,13 @@ UExcel* UPBLoaderSubsystem::LoadExcelImpl(TSubclassOf<UExcel> Wrapper)
 	{
 		UE_LOG(LogProtobuf, Warning, TEXT("No excel content found at path : %s"), *ExcelFullPath);
 	}
+	LoadedExcels.Add(ExcelName, Result);
 	return Result;
 }
 
 void UPBLoaderSubsystem::ReleaseAll()
 {
-	
+	LoadedExcels.Empty();
 }
 
 void UPBLoaderSubsystem::RemovePostfix(FString &PostfixRemovedName)
