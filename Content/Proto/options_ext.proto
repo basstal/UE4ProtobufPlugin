@@ -12,8 +12,8 @@ extend google.protobuf.MessageOptions {
 
 extend google.protobuf.FieldOptions {
     bool pk              = 40001;   // 主键
-    bool softclasspath  = 700001;   // 生成UE类型为FSoftClassPath
-    bool softobjectpath = 700002;   // 生成UE类型为FSoftObjectPath
+    bool softclasspath  = 700001;   // 生成UE类型为FSoftClassPath，不要与softobjectpath同时使用（未处理的情况）
+    bool softobjectpath = 700002;   // 生成UE类型为FSoftObjectPath，不要与softclasspath同时使用（未处理的情况）
 }
 
 extend google.protobuf.EnumOptions {

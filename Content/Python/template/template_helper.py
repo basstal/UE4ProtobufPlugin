@@ -3,7 +3,7 @@
 #-----------------------------------------------------
 
 from google.protobuf.descriptor import FieldDescriptor
-from protobuf import get_option_value
+from pb_helper import pb_helper
 
 pb_type_to_ue_type_map = [
     'none',  # [0]
@@ -41,7 +41,7 @@ def transfor_pb_type_to_ue_type(pb_field, typename_postfix, uclass_as_default):
         content = f'E{pb_field.enum_type.name}'
     elif pb_field.type == FieldDescriptor.TYPE_MESSAGE:
         # 对于含有 ustruct option 的 message 要处理成结构
-        is_ustruct = get_option_value(pb_field.message_type.GetOptions(), 'ustruct', False) != False
+        is_ustruct = pb_helper.get_option_value(pb_field.message_type.GetOptions(), 'ustruct', False) != False
         if not uclass_as_default or is_ustruct:
             content = f'F{pb_field.message_type.name}{typename_postfix}'
         else:
@@ -119,7 +119,7 @@ def transfor_repeated_value(pb_field, is_ustruct, classname, typename_postfix, u
     elif pb_field.type == FieldDescriptor.TYPE_MESSAGE:
         namespace = pb_field.file.package
         temp_name = f'{pb_field.message_type.name}_tmp'
-        message_type_is_ustruct = get_option_value(pb_field.message_type.GetOptions(), 'ustruct', False) != False
+        message_type_is_ustruct = pb_helper.get_option_value(pb_field.message_type.GetOptions(), 'ustruct', False) != False
         if not uclass_as_default or message_type_is_ustruct:
             add_content = f'CopyTemp({temp_name}->{pb_field.message_type.name.lower()})'
         else:
@@ -155,7 +155,7 @@ def transfor_pb_value_to_ue_value(pb_field, text_format, class_wrapper, uclass_a
             f'::google::protobuf::Message * {pb_field.name.lower()}Message = const_cast<ActionInputControl *>(&PBData->{pb_field.name.lower()}());{chr(10)}',
         ]
         # 对于含有 ustruct option 的 message 要处理成结构
-        message_type_is_ustruct = get_option_value(pb_field.message_type.GetOptions(), 'ustruct', False) != False
+        message_type_is_ustruct = pb_helper.get_option_value(pb_field.message_type.GetOptions(), 'ustruct', False) != False
         if not uclass_as_default or message_type_is_ustruct:
             # 构造一个临时的 包装类型 用于 Load 数据
             temp_name = f'{pb_field.name}_tmp'

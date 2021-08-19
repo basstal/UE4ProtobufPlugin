@@ -80,14 +80,14 @@ def output_binaries(excel_instances, output_path, type_name):
 
 def excel_binarization(excel, type_name, verbose=True):
     """
-    序列化指定的excel中每一行到指定的pb类型
+    通过openpyxl读取指定的excel，并将（从第三行开始）每一行转换成与excel表名对应的protobuf message类型
 
     @excel (str)
-      excel文件的完整路径
+        excel文件的完整路径
     @type_name (str)
-      对应的pb message名称
+        对应的protobuf message类型名称
     @verbose (bool)
-      是否显示序列化log信息
+        是否显示完整log信息
     """
     from pb_helper import pb_helper
     pb_type, _ = pb_helper.get_type_with_module(type_name)
@@ -208,7 +208,7 @@ def generate_pbdef(proto_path, output_path, type):
         return
     u.execute(get_bin(), args)
 
-
+# TODO: 这里后面如果加了更多的选项，需要重构一下，按field保存而不是按有选项的fields的list保存
 def filter_by_option_descriptor(pb_fields, option_field_descriptor_name):
     """
     从输出的pb fields中，筛选出含有指定pb option的pb field
@@ -231,25 +231,6 @@ def filter_by_option_descriptor(pb_fields, option_field_descriptor_name):
         if is_target_field:
             result_fields.append(pb_field)
     return result_fields
-
-
-def get_option_value(options, target_option, default=''):
-    """
-    从options结构中获得target_option的值，如果找不到返回空字符串
-
-    @options (object)
-      options字段，是DESCRIPTOR中的一个结构，详情见google\protobuf\descriptor.py
-
-    @target_option (str)
-      option名称，参考options_ext.proto定义
-    
-    @default (str)
-      找不到时需要返回的默认值
-    """
-    for option_field_descriptor, option_field_value in options.ListFields():
-        if option_field_descriptor.name == target_option:
-            return option_field_value
-    return default
 
 
 def handle_friend_class(cpp_wrapper_content_by_modules):
@@ -328,8 +309,8 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper, gen_file_postfix):
             option_pk_fields = filter_by_option_descriptor(pb_fields, 'pk')
 
             options = pb_type.DESCRIPTOR.GetOptions()
-            ustruct_specifiers = get_option_value(options, 'ustruct', False)
-            uclass_specifiers = get_option_value(options, 'uclass')
+            ustruct_specifiers = pb_helper.get_option_value(options, 'ustruct', False)
+            uclass_specifiers = pb_helper.get_option_value(options, 'uclass')
 
             if not uclass_as_default and ustruct_specifiers == False:
                 ustruct_specifiers = ''
@@ -373,7 +354,7 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper, gen_file_postfix):
             enum_wrapper = {
                 'enumname': enum_name,
                 'pb_enum_values': pb_enum.DESCRIPTOR.values,
-                'uenum_specifiers': get_option_value(options, 'uenum')
+                'uenum_specifiers': pb_helper.get_option_value(options, 'uenum')
             }
             enums_wrapper.append(enum_wrapper)
 
@@ -436,7 +417,6 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper, gen_file_postfix):
             'pb_imports':cpp_wrapper_content['pb_imports'],
             'module_name':module_name,
             'file_basename':file_basename,
-            'get_option_value':get_option_value,
             'uclass_as_default':uclass_as_default,
             'gen_file_postfix':gen_file_postfix
         }

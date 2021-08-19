@@ -31,7 +31,7 @@ def reload_modules():
         # del(sys.modules[module_name])
 
 
-reload_modules()
+# reload_modules()
 if len(sys.argv) > 1:
     cmd = sys.argv[1]
     if cmd == 'all':

@@ -93,3 +93,22 @@ class pb_helper:
         pattern = re.compile(r'\(Path="(.*)"\)')
         match_result = pattern.match(preference_path)
         return os.path.abspath(os.path.normpath(os.path.join(unreal.Paths.project_dir(), match_result.group(1))))
+
+    @staticmethod
+    def get_option_value(options, target_option, default=''):
+        """
+        从options结构中获得target_option的值，如果找不到返回空字符串
+
+        @options (object)
+        options字段，是DESCRIPTOR中的一个结构，详情见 google.protobuf.descriptor.FieldDescriptor
+
+        @target_option (str)
+        option名称，参考options_ext.proto定义
+        
+        @default (str)
+        找不到时需要返回的默认值
+        """
+        for option_field_descriptor, option_field_value in options.ListFields():
+            if option_field_descriptor.name == target_option:
+                return option_field_value
+        return default

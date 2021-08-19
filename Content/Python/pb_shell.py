@@ -1,6 +1,7 @@
 import sys
 from pb_helper import pb_helper
 import utility as u
+import re
 
 from unreal_import_switch import unreal
 
@@ -26,7 +27,39 @@ class pb_shell:
         # ** 根据descriptor的number，将excel表中的数组下标对应到repeated数组的下标（python数组下标）
         self.exi_to_rpi_by_dscn = {}
 
+    def postprocess_value(self, descriptor_field, in_value):
+        """
+        根据需要后处理即将保存的数据，返回处理完（或无需处理）的数据
+
+        @descriptor_field
+            字段的protobuf说明符（Descriptor），详情见 google.protobuf.descriptor.FieldDescriptor
+        @in_value
+            即将保存的数据
+        """
+        # 支持excel直接保存UE资源的完整Reference，例如 Blueprint'/Game/Sam/Characters/2B/2BCharacter.2BCharacter'
+        options = descriptor_field.GetOptions()
+        softclasspath = pb_helper.get_option_value(options, "softclasspath", None)
+        softobjectpath = pb_helper.get_option_value(options, "softobjectpath", None)
+        if (softclasspath or softobjectpath) and type(in_value) is str:
+            match = re.match(r".*?'(.*?)'", in_value)
+            if match:
+                if softclasspath:
+                    # automatic add _C postfix if don't exist
+                    in_value = match[1] if match[1].endswith('_C') else f'{match[1]}_C'
+                else:
+                    in_value = match[1]
+
+        return in_value
+
     def resolve_value_by_descriptor(self, descriptor_field, value):
+        """
+        根据field Descriptor类型处理为对应的python类型，返回需要保存在protobuf field中的值
+
+        @descriptor_field
+            字段的protobuf说明符（Descriptor），详情见 google.protobuf.descriptor.FieldDescriptor
+        @value
+            处理前的值
+        """
         resolved_value = None
         target_type = descriptor_field.type
         
@@ -58,6 +91,8 @@ class pb_shell:
                 resolved_value = cast_to_float
             elif target_type is FieldDescriptor.TYPE_BOOL:
                 resolved_value = (int(cast_to_float)) != 0
+
+        resolved_value = self.postprocess_value(descriptor_field, resolved_value)
 
         return resolved_value
 
