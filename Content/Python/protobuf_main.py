@@ -1,7 +1,9 @@
 import pb_helper
 import pb_shell
 import protobuf
-import template.cpp_wrapper
+import template.cpp_template
+import template.h_template
+import template.template_helper
 import unreal
 import time as t
 import sys
@@ -10,7 +12,9 @@ import importlib
 
 def reload_modules():
     importlib.reload(protobuf)
-    importlib.reload(template.cpp_wrapper)
+    importlib.reload(template.template_helper)
+    importlib.reload(template.cpp_template)
+    importlib.reload(template.h_template)
     importlib.reload(pb_shell)
     importlib.reload(pb_helper)
     # unreal.log(type(sys.modules))

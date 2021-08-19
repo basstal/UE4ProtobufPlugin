@@ -103,18 +103,22 @@ void ${excel_class_name}$::LoadPKMap()
 {
     for (auto Row : Rows)
     {
-        PK_To_Row.Add(Row${write('->' if not is_ustruct else '.')}$${option_pk_fields[0].name}$, Row);
+        PK_To_Row.Add(Row${write('.' if is_ustruct else '->')}$${option_pk_fields[0].name}$, Row);
     }
 }
 
-const ${write(f'{row_classname}' if not is_ustruct else f'{row_structname}')}$ * ${excel_class_name}$::Get(${pk_ue_type}$ PKValue) const
+const ${write(f'{row_structname}' if is_ustruct else f'{row_classname} *')}$ ${excel_class_name}$::Get(${pk_ue_type}$ PKValue) const
 {
+    ${if is_ustruct:}$
+    return PK_To_Row.FindRef(PKValue);
+    ${:else:}$
     auto FindResult = PK_To_Row.Find(PKValue);
     if (FindResult)
     {
-        return ${write('*' if not is_ustruct else '')}$FindResult;
+        return *FindResult;
     }
     return nullptr;
+    ${:end-if}$
 }
 
 ${:end-if}$

@@ -112,7 +112,7 @@ class U${excel_wrapper["excelname"]}$${excel_wrapper["typename_postfix"]}$ : pub
 public:
     ${#默认BlueprintReadOnly, 供蓝图使用}$
 	UPROPERTY(BlueprintReadOnly)
-	TArray<${write(f'const {row_classname} *' if not is_ustruct else f'{row_structname}')}$> Rows;
+	TArray<${write(f'{row_structname}' if is_ustruct else f'const {row_classname} *')}$> Rows;
 protected:
 	virtual void Load(TArray<uint8>& Bytes) override;
 	
@@ -121,10 +121,12 @@ ${#仅有一个主键}$
 ${if pk_fields_count == 1:}$
     ${pk_ue_type = transfor_pk_type(transfor_pb_type_to_ue_type(option_pk_fields[0], excel_wrapper["typename_postfix"], uclass_as_default))}$
     UPROPERTY()
-    TMap<${pk_ue_type}$, ${write(f'const {row_classname} *' if not is_ustruct else f'{row_structname}')}$> PK_To_Row;
+    TMap<${pk_ue_type}$, ${write(f'{row_structname}' if is_ustruct else f'const {row_classname} *')}$> PK_To_Row;
     void LoadPKMap();
 public:
-    const ${write(f'{row_classname}' if not is_ustruct else f'{row_structname}')}$ * Get(${pk_ue_type}$ PKValue) const;
+    ${#根据主键Get的方法默认BlueprintCallable, 供蓝图使用}$
+    UFUNCTION(BlueprintCallable)
+    const ${write(f'{row_structname}' if is_ustruct else f'{row_classname} *')}$ Get(${pk_ue_type}$ PKValue) const;
 
 ${:end-if}$
 
