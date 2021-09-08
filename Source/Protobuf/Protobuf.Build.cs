@@ -54,7 +54,9 @@ public class Protobuf : ModuleRules
 				"AssetTools",
 				"ContentBrowserData",
 				"ContentBrowserFileDataSource",
-				"DeveloperSettings"
+				"DeveloperSettings",
+				"DeveloperToolSettings",
+				
 			});
 		}
 	}

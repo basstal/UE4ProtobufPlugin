@@ -27,11 +27,14 @@ def reload_modules():
 
     for module_name in pending_modules:
         module = sys.modules[module_name]
-        importlib.reload(module)
+        try:
+            importlib.reload(module)
+        except:
+            None
         # del(sys.modules[module_name])
 
 
-# reload_modules()
+reload_modules()
 if len(sys.argv) > 1:
     cmd = sys.argv[1]
     if cmd == 'all':

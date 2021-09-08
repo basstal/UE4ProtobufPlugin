@@ -17,7 +17,7 @@ class pb_helper:
 
     @staticmethod
     def get_pb_path():
-        python_pb_out = os.path.normpath(os.path.join(unreal.Paths.project_intermediate_dir(), 'pb'))
+        python_pb_out = os.path.normpath(os.path.join(unreal.Paths.project_content_dir(), 'Python/pb'))
         return python_pb_out
 
     @staticmethod

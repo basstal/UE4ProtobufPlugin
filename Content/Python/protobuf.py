@@ -94,7 +94,7 @@ def excel_binarization(excel, type_name, verbose=True):
     result = []
     if pb_type is None:
         unreal.log_error('pb type "{0}" not found. failed to binarization excel "{1}"'.format(type_name, excel))
-        return
+        sys.exit(-1)
 
     workbook = openpyxl.load_workbook(excel)
     worksheet = workbook.worksheets[0]
@@ -473,7 +473,6 @@ def generate_all():
 
     """
     from pb_helper import pb_helper
-
     preference = pb_helper.load_protobuf_preference()
 
     proto_path = pb_helper.get_path_from_preference(preference, 'proto_root_path')

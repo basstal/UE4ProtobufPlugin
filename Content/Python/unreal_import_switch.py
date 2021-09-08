@@ -22,6 +22,10 @@ if len(sys.argv) > 1 and sys.argv[1] == 'fake_unreal':
                 return os.path.join(unreal.Paths.project_dir(), 'Intermediate')
 
             @staticmethod
+            def project_content_dir():
+                return os.path.join(unreal.Paths.project_dir(), 'Content')
+
+            @staticmethod
             def project_dir():
                 return os.path.realpath(os.path.join(os.path.split(__file__)[0], '../../../../'))
 
