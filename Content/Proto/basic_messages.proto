@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+// ** 这个文件名的配置写死在 pb_helper.py -> basic_messages_filename 方法中
+
+// ** NOTE:message名称以及有关字段名，已写死在 python -> protobuf.py -> output_binaries 方法中
+// 非特殊情况不要更改message Excel的字段内容
+message Excel {
+    string         excelName = 1;
+    repeated bytes rows      = 2;
+}
+
+// ** 对UE已有结构的简单映射
+message PB_Vector {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+}
+
+message PB_Transform {
+    PB_Vector Rotation    = 1;
+    PB_Vector Translation = 2;
+    PB_Vector Scale3D     = 3;
+}

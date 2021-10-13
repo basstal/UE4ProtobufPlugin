@@ -112,3 +112,20 @@ class pb_helper:
             if option_field_descriptor.name == target_option:
                 return option_field_value
         return default
+    
+    @staticmethod
+    def basic_messages_filename():
+        """
+        预定义的pb message都在这个文件名的proto文件中
+        """
+        return 'basic_messages'
+
+    @staticmethod
+    def exclude_proto_names():
+        """
+        不会生成UE包装的proto文件名
+        """
+        return [
+            'options_ext',
+            pb_helper.basic_messages_filename(),
+        ]

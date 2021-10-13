@@ -13,18 +13,12 @@ from templite import Templite
 from unreal_import_switch import unreal
 
 
-def exclude_proto_names():
-    return [
-        'options_ext',
-        'excel_basic',
-    ]
-
 def get_pb_field_ref(excel_field_name):
     """
     根据excel列描述名称[第二列的字符串]，生成对应的pb message字段映射，这里处理了 '.' 操作获得子Message以及 '[]' 操作获得repeated字段按下标索引
 
     @excel_field_name (str)
-      excel列描述名称
+        excel列描述名称
     """
     pb_field_excel_ref = []
 
@@ -51,11 +45,11 @@ def output_binaries(excel_instances, output_path, type_name):
     将序列化的内容输出到指定的文件路径
 
     @excel_instances (list(object<Message>))
-      已序列化对象的列表
+        已序列化对象的列表
     @output_path (str)
-      输出文件的完整路径
+        输出文件的完整路径
     @type_name (str)
-      表名
+        表名
     """
     if not os.path.exists(output_path):
         os.makedirs(output_path)
@@ -170,9 +164,9 @@ def make_args(dir, ignore_patterns=None):
     生成 protoc 执行时需要的 .proto 文件对应的路径参数
 
     @dir (str)
-      proto文件所在根目录
+        proto文件所在根目录
     @ignore_patterns (list(str))
-      参数解释
+        参数解释
     """
     proto_files = u.get_files(dir, ["*.proto"], ignore_patterns)
 
@@ -209,14 +203,16 @@ def generate_pbdef(proto_path, output_path, type):
     u.execute(get_bin(), args)
 
 # TODO: 这里后面如果加了更多的选项，需要重构一下，按field保存而不是按有选项的fields的list保存
+
+
 def filter_by_option_descriptor(pb_fields, option_field_descriptor_name):
     """
     从输出的pb fields中，筛选出含有指定pb option的pb field
 
     @pb_fields (list(object<FieldDescriptor>))
-      待筛选的 Message FieldDescriptor 对象列表
+        待筛选的 Message FieldDescriptor 对象列表
     @option_field_descriptor_name (str)
-      指定的 option
+        指定的 option
     """
 
     result_fields = []
@@ -238,7 +234,7 @@ def handle_friend_class(cpp_wrapper_content_by_modules):
     处理友元类
 
     @cpp_wrapper_content_by_modules (dict(str, dict()))
-      已加载并处理好的全部模块映射数据
+        已加载并处理好的全部模块映射数据
     """
 
     all_class_wrapper = []
@@ -288,12 +284,12 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper, gen_file_postfix):
         # ** NOTE:仅windows生效
         if 'google\\protobuf' in module.__file__:
             continue
-        if loaded_module.replace('_pb2', '') in exclude_proto_names():
+        if loaded_module.replace('_pb2', '') in pb_helper.exclude_proto_names():
             continue
         pb_imports = []
         for dependency in module.DESCRIPTOR.dependencies:
             shortname = dependency.name.replace('.proto', '')
-            if shortname in exclude_proto_names():
+            if shortname in pb_helper.exclude_proto_names():
                 continue
             pb_imports.append(shortname)
 
@@ -305,7 +301,7 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper, gen_file_postfix):
             pb_fields = pb_type.DESCRIPTOR.fields
             option_FSoftClassPath_fields = filter_by_option_descriptor(pb_fields, 'softclasspath')
             option_FSoftObjectPath_fields = filter_by_option_descriptor(pb_fields, 'softobjectpath')
-                
+
             option_pk_fields = filter_by_option_descriptor(pb_fields, 'pk')
 
             options = pb_type.DESCRIPTOR.GetOptions()
@@ -324,10 +320,10 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper, gen_file_postfix):
                 'option_FSoftObjectPath_fields': option_FSoftObjectPath_fields,
                 'option_pk_fields': option_pk_fields,
                 'ustruct_specifiers': ustruct_specifiers if ustruct_specifiers != False else '',
-                'typename_postfix' : struct_typename_postfix,
-                'uproperty_specifiers' : uproperty_specifiers,
+                'typename_postfix': struct_typename_postfix,
+                'uproperty_specifiers': uproperty_specifiers,
             }
-            #BlueprintType default, 为了让Excel的Rows能够BlueprintReadOnly
+            # BlueprintType default, 为了让Excel的Rows能够BlueprintReadOnly
             if 'BlueprintType' not in struct_wrapper['ustruct_specifiers']:
                 if struct_wrapper['ustruct_specifiers'] == '':
                     struct_wrapper['ustruct_specifiers'] = 'BlueprintType'
@@ -342,9 +338,9 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper, gen_file_postfix):
                 'option_pk_fields': option_pk_fields,
                 'uclass_specifiers': uclass_specifiers,
                 'is_ustruct': ustruct_specifiers != False,
-                'typename_postfix' : class_typename_postfix,
-                'struct_wrapper' : struct_wrapper,
-                'uproperty_specifiers' : uproperty_specifiers
+                'typename_postfix': class_typename_postfix,
+                'struct_wrapper': struct_wrapper,
+                'uproperty_specifiers': uproperty_specifiers,
             }
             if not uclass_as_default or ustruct_specifiers != False:
                 structs_wrapper.append(struct_wrapper)
@@ -394,7 +390,7 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper, gen_file_postfix):
             'pb_fields': excel_class_wrapper['pb_fields'],
             'option_pk_fields': excel_class_wrapper['option_pk_fields'],
             'typename_postfix': excel_typename_postfix,
-            'class_wrapper' : excel_class_wrapper,
+            'class_wrapper': excel_class_wrapper,
             'is_ustruct': excel_class_wrapper['is_ustruct'],
         }
         excels_wrapper.append(excel_wrapper)
@@ -414,15 +410,15 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper, gen_file_postfix):
         file_basename = '{0}{1}'.format(module_name, gen_file_postfix)
 
         params = {
-            'classes_wrapper':cpp_wrapper_content['classes_wrapper'],
-            'structs_wrapper':cpp_wrapper_content['structs_wrapper'],
-            'enums_wrapper':cpp_wrapper_content['enums_wrapper'],
-            'excels_wrapper':cpp_wrapper_content['excels_wrapper'],
-            'pb_imports':cpp_wrapper_content['pb_imports'],
-            'module_name':module_name,
-            'file_basename':file_basename,
-            'uclass_as_default':uclass_as_default,
-            'gen_file_postfix':gen_file_postfix
+            'classes_wrapper': cpp_wrapper_content['classes_wrapper'],
+            'structs_wrapper': cpp_wrapper_content['structs_wrapper'],
+            'enums_wrapper': cpp_wrapper_content['enums_wrapper'],
+            'excels_wrapper': cpp_wrapper_content['excels_wrapper'],
+            'pb_imports': cpp_wrapper_content['pb_imports'],
+            'module_name': module_name,
+            'file_basename': file_basename,
+            'uclass_as_default': uclass_as_default,
+            'gen_file_postfix': gen_file_postfix
         }
         # ** output header file
         header_file_path = os.path.join(output_path, '{}.h'.format(file_basename))
@@ -434,7 +430,6 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper, gen_file_postfix):
         with open(header_file_path, 'w') as f:
             f.write(header_content)
 
-
         # ** output cpp file
         cpp_file_path = os.path.join(output_path, '{}.cpp'.format(file_basename))
         if os.path.exists(cpp_file_path):
@@ -444,7 +439,6 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper, gen_file_postfix):
 
         with open(cpp_file_path, 'w') as f:
             f.write(cpp_content)
-        
 
 
 def generate_excel_bin():
@@ -470,6 +464,7 @@ def generate_excel_bin():
             cpp_excel_wrapper.append(basename)
 
     return cpp_excel_wrapper
+
 
 def generate_all():
     """

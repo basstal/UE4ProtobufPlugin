@@ -6,10 +6,11 @@ h_template = r'''
 
 #include "ProtoGen/${module_name}$.pb.h"
 ${#-----------------------------------------------------}$
-${#---------------处理 excel_basic 依赖关系--------------}$
+${#---------------处理 预定义内容 依赖关系----------------}$
 ${#-----------------------------------------------------}$
 ${if len(excels_wrapper) > 0:}$
-#include "ProtoGen/excel_basic.pb.h"
+${from pb_helper import pb_helper}$
+#include "ProtoGen/${write(pb_helper.basic_messages_filename())}$.pb.h"
 ${:end-if}$
 ${#-----------------------------------------------------}$
 ${#---------------处理 pb import 依赖关系----------------}$
@@ -117,7 +118,7 @@ protected:
 
 ${#仅有一个主键}$
 ${if pk_fields_count == 1:}$
-    ${pk_ue_type = transfor_pk_type(transfor_pb_type_to_ue_type(option_pk_fields[0], excel_wrapper["typename_postfix"], uclass_as_default))}$
+    ${pk_ue_type = transfer_pk_type(transfer_pb_type_to_ue_type(option_pk_fields[0], excel_wrapper["typename_postfix"], uclass_as_default))}$
     UPROPERTY()
     TMap<${pk_ue_type}$, ${write(f'{row_structname}' if is_ustruct else f'const {row_classname} *')}$> PK_To_Row;
     void LoadPKMap();
@@ -132,7 +133,7 @@ ${#大于一个主键}$
 ${if pk_fields_count > 1:}$
 ${for i in range(0, pk_fields_count):}$
     UPROPERTY()
-    ${pk_ue_type = transfor_pk_type(transfor_pb_type_to_ue_type(option_pk_fields[i], excel_wrapper["typename_postfix"], uclass_as_default))}$
+    ${pk_ue_type = transfer_pk_type(transfer_pb_type_to_ue_type(option_pk_fields[i], excel_wrapper["typename_postfix"], uclass_as_default))}$
     TMap<${write(pk_ue_type)}$, const ${row_classname}$ *> PK${i}$_To_Row;
 ${:end-for}$
     void LoadPKMapRows();

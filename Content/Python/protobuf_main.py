@@ -21,7 +21,7 @@ def reload_modules():
     pending_modules = []
     for module_name  in sys.modules:
         if module_name.endswith('_pb2'):
-            if module_name.replace('_pb2', '') in protobuf.exclude_proto_names():
+            if module_name.replace('_pb2', '') in pb_helper.exclude_proto_names():
                 continue
             pending_modules.append(module_name)
 

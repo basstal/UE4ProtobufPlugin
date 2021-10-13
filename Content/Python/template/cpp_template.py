@@ -9,10 +9,11 @@ ${#引用对应的header}$
 
 #include "ProtoGen/${module_name}$.pb.h"
 ${#-----------------------------------------------------}$
-${#---------------处理 excel_basic 依赖关系--------------}$
+${#---------------处理 预定义内容 依赖关系----------------}$
 ${#-----------------------------------------------------}$
 ${if len(excels_wrapper) > 0:}$
-#include "ProtoGen/excel_basic.pb.h"
+${from pb_helper import pb_helper}$
+#include "ProtoGen/${write(pb_helper.basic_messages_filename())}$.pb.h"
 ${:end-if}$
 ${#-----------------------------------------------------}$
 ${#---------------处理 pb import 依赖关系----------------}$
@@ -49,7 +50,7 @@ void ${class_name}$::Load(const ::google::protobuf::Message * Message)
         ${:elif ue_type == 'FSoftClassPath':}$
         ${write(handle_ustruct(pb_field, class_wrapper))}$ = FSoftClassPath(PBData->${write(pb_field.name.lower())}$().c_str());
         ${:else:}$
-        ${write(transfor_pb_value_to_ue_value(pb_field, '\t'*3, class_wrapper, uclass_as_default))}$
+        ${write(transfer_pb_value_to_ue_value(pb_field, '\t' * 2, class_wrapper, uclass_as_default))}$
         ${:end-if}$
         ${:end-for}$
     }
@@ -97,7 +98,7 @@ void ${excel_class_name}$::Load(TArray<uint8>& Bytes)
 
 ${#仅有一个主键}$
 ${if pk_fields_count == 1:}$
-${pk_ue_type = transfor_pk_type(transfor_pb_type_to_ue_type(option_pk_fields[0], excel_wrapper["typename_postfix"], uclass_as_default))}$
+${pk_ue_type = transfer_pk_type(transfer_pb_type_to_ue_type(option_pk_fields[0], excel_wrapper["typename_postfix"], uclass_as_default))}$
 
 void ${excel_class_name}$::LoadPKMap()
 {
