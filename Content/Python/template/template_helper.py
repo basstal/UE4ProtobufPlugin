@@ -7,7 +7,7 @@ from pb_helper import pb_helper
 
 pb_type_to_ue_type_map = [
     'none',  # [0]
-    # ** TODO:double??
+    # ** NOTE:pb double 转换为UE float 会来带精度损失
     'float',  # [1] TYPE_DOUBLE
     'float',  # [2] TYPE_FLOAT
     'int64',  # [3] TYPE_INT64
@@ -17,11 +17,11 @@ pb_type_to_ue_type_map = [
     'uint32',  # [7] TYPE_FIXED32
     'bool',  # [8] TYPE_BOOL
     'FString',  # [9] TYPE_STRING
-    'TODO??deprecated',  # [10] TYPE_GROUP
-    'TODO??',  # [11] TYPE_MESSAGE
+    'illegal!!',  # [10] TYPE_GROUP
+    'illegal!!',  # [11] TYPE_MESSAGE
     'FString',  # [12] TYPE_BYTES
     'uint32',  # [13] TYPE_UINT32
-    'TODO??',  # [14] TYPE_ENUM
+    'illegal!!',  # [14] TYPE_ENUM
     'int32',  # [15] TYPE_SFIXED32
     'int64',  # [16] TYPE_SFIXED64
     'int32',  # [17] TYPE_SINT32

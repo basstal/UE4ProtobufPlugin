@@ -8,13 +8,14 @@ import "google/protobuf/descriptor.proto";
 extend google.protobuf.MessageOptions {
     string ustruct   = 700001;   // 填在USTRUCT()括号中的说明符，供UE类型反射使用；USTRUCT默认填写了BlueprintType
     string uclass    = 700002;   // 填在UCLASS()括号中的说明符，供UE类型反射使用
-    string uproperty = 700003;   // 填在UPROPERTY()括号中的说明符，供UE类型反射使用
+    string uproperty = 700003;   // 填在UPROPERTY()括号中的说明符，供UE类型反射使用，填在FieldOptions指定的uproperty之前，为所有Field共享
 }
 
 extend google.protobuf.FieldOptions {
-    bool pk             = 40001;    // 主键
-    bool softclasspath  = 700001;   // 生成UE类型为FSoftClassPath，不要与softobjectpath同时使用（未处理的情况）
-    bool softobjectpath = 700002;   // 生成UE类型为FSoftObjectPath，不要与softclasspath同时使用（未处理的情况）
+    bool   pk             = 40001;    // 主键
+    bool   softclasspath  = 700001;   // 生成UE类型为FSoftClassPath，不要与softobjectpath同时使用（未处理的情况）
+    bool   softobjectpath = 700002;   // 生成UE类型为FSoftObjectPath，不要与softclasspath同时使用（未处理的情况）
+    string m_uproperty    = 700003;   // 填在UPROPERTY()括号中的说明符，仅该字段所有，不共享
 }
 
 extend google.protobuf.EnumOptions {
