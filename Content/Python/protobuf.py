@@ -311,6 +311,7 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper, gen_file_postfix):
             options = pb_type.DESCRIPTOR.GetOptions()
             ustruct_specifiers = pb_helper.get_option_value(options, 'ustruct', False)
             uclass_specifiers = pb_helper.get_option_value(options, 'uclass')
+            blueprint_writable = pb_helper.get_option_value(options, 'blueprint_writable', False)
 
             if not uclass_as_default and ustruct_specifiers == False:
                 ustruct_specifiers = ''
@@ -323,6 +324,7 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper, gen_file_postfix):
                 'option_pk_fields': option_pk_fields,
                 'ustruct_specifiers': ustruct_specifiers if ustruct_specifiers != False else '',
                 'typename_postfix' : struct_typename_postfix,
+                'blueprint_writable' : blueprint_writable,
             }
             #BlueprintType default, 为了让Excel的Rows能够BlueprintReadOnly
             if 'BlueprintType' not in struct_wrapper['ustruct_specifiers']:
@@ -340,7 +342,8 @@ def generate_cpp_wrapper(output_path, cpp_excel_wrapper, gen_file_postfix):
                 'uclass_specifiers': uclass_specifiers,
                 'is_ustruct': ustruct_specifiers != False,
                 'typename_postfix' : class_typename_postfix,
-                'struct_wrapper' : struct_wrapper
+                'struct_wrapper' : struct_wrapper,
+                'blueprint_writable' : blueprint_writable
             }
             if not uclass_as_default or ustruct_specifiers != False:
                 structs_wrapper.append(struct_wrapper)

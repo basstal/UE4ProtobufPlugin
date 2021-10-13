@@ -6,12 +6,13 @@ import "google/protobuf/descriptor.proto";
 //      1. 对message生成类型的标记，以供生成UCLASS或者USTRUCT；
 //      2. 将protobuf类型对应生成到不同的UE类型，例如[softclasspath]option选项，可以将protobuf的string类型对应到FSoftClassPath类型
 extend google.protobuf.MessageOptions {
-    string ustruct = 700001;   // 填在USTRUCT()括号中的说明符，供UE类型反射使用；USTRUCT默认填写了BlueprintType
-    string uclass  = 700002;   // 填在UCLASS()括号中的说明符，供UE类型反射使用
+    string ustruct            = 700001;   // 填在USTRUCT()括号中的说明符，供UE类型反射使用；USTRUCT默认填写了BlueprintType
+    string uclass             = 700002;   // 填在UCLASS()括号中的说明符，供UE类型反射使用
+    bool   blueprint_writable = 700003;   // 默认BlueprintReadOnly, 如果blueprint_writable的选项为true，则BlueprintReadWrite
 }
 
 extend google.protobuf.FieldOptions {
-    bool pk              = 40001;   // 主键
+    bool pk             = 40001;    // 主键
     bool softclasspath  = 700001;   // 生成UE类型为FSoftClassPath，不要与softobjectpath同时使用（未处理的情况）
     bool softobjectpath = 700002;   // 生成UE类型为FSoftObjectPath，不要与softclasspath同时使用（未处理的情况）
 }
