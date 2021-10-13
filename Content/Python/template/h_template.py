@@ -54,9 +54,8 @@ struct F${struct_wrapper["name"]}$${typename_postfix}$
     GENERATED_BODY()
 public:
     ${for pb_field in struct_wrapper['pb_fields']:}$
-    ${#默认BlueprintReadOnly, 如果blueprint_writable的选项为true，则BlueprintReadWrite}$
     ${#TODO:过滤不支持的类型}$
-    UPROPERTY(${write('BlueprintReadWrite' if struct_wrapper['blueprint_writable'] else 'BlueprintReadOnly')}$)
+    UPROPERTY(${struct_wrapper['uproperty_specifiers']}$)
     ${write(get_pb_field_ue_type(pb_field, struct_wrapper, uclass_as_default))}$ ${pb_field.name}$;
     ${:end-for}$
 };
@@ -110,8 +109,7 @@ class U${excel_wrapper["excelname"]}$${excel_wrapper["typename_postfix"]}$ : pub
 {
 	GENERATED_BODY()
 public:
-    ${#默认BlueprintReadOnly, 如果blueprint_writable的选项为true，则BlueprintReadWrite}$
-	UPROPERTY(${write('BlueprintReadWrite' if struct_wrapper['blueprint_writable'] else 'BlueprintReadOnly')}$)
+	UPROPERTY(${struct_wrapper['uproperty_specifiers']}$)
 	TArray<${write(f'{row_structname}' if is_ustruct else f'const {row_classname} *')}$> Rows;
 protected:
 	virtual void Load(TArray<uint8>& Bytes) override;
